@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - MoveScout AI</title>
+    <link rel="stylesheet" href="/static/admin.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="dashboard">
+        <aside class="sidebar">
+            <h1>MoveScout AI</h1>
+            <nav>
+                <button class="nav-btn active" data-view="analytics">📊 Analytics</button>
+                <button class="nav-btn" data-view="leads">📋 Leads</button>
+                <button class="nav-btn" data-view="customers">👥 Customers</button>
+            </nav>
+        </aside>
+
+        <main class="content">
+            <!-- Analytics View -->
+            <div id="analytics-view" class="view active">
+                <h2>Analytics Overview</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="total-customers">--</div>
+                        <div class="stat-label">Total Customers</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="active-subs">--</div>
+                        <div class="stat-label">Active Subscriptions</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="mrr">$--</div>
+                        <div class="stat-label">Monthly Recurring Revenue</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="total-revenue">$--</div>
+                        <div class="stat-label">Total Revenue</div>
+                    </div>
+                </div>
+
+                <div class="stats-grid" style="margin-top: 20px;">
+                    <div class="stat-card">
+                        <div class="stat-value" id="total-leads">--</div>
+                        <div class="stat-label">Total Leads</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="available-leads">--</div>
+                        <div class="stat-label">Available Leads</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="sold-leads">--</div>
+                        <div class="stat-label">Sold Leads</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="overage-revenue">$--</div>
+                        <div class="stat-label">Overage Revenue</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leads View -->
+            <div id="leads-view" class="view">
+                <h2>Lead Management</h2>
+                <div class="filters">
+                    <select id="status-filter">
+                        <option value="">All Statuses</option>
+                        <option value="available">Available</option>
+                        <option value="sold">Sold</option>
+                    </select>
+                    <input type="number" id="min-score" placeholder="Min Score" min="0" max="100">
+                    <button onclick="loadLeads()">Filter</button>
+                </div>
+                <table id="leads-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Move Date</th>
+                            <th>Score</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leads-tbody">
+                        <tr>
+                            <td colspan="6">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Customers View -->
+            <div id="customers-view" class="view">
+                <h2>Customer Management</h2>
+                <table id="customers-table">
+                    <thead>
+                        <tr>
+                            <th>Company</th>
+                            <th>Email</th>
+                            <th>Tier</th>
+                            <th>Leads Used</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customers-tbody">
+                        <tr>
+                            <td colspan="5">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const API_BASE = '';
+        let currentCustomers = [];
+
+        // Navigation
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+
+                btn.classList.add('active');
+                const view = btn.dataset.view;
+                document.getElementById(`${view}-view`).classList.add('active');
+
+                // Load data for the view
+                if (view === 'analytics') loadAnalytics();
+                if (view === 'leads') loadLeads();
+                if (view === 'customers') loadCustomers();
+            });
+        });
+
+        // Load analytics
+        async function loadAnalytics() {
+            try {
+                const res = await fetch('/admin/analytics', {
+                    headers: { 'Authorization': 'Basic ' + btoa('admin:changeme') }
+                });
+                const data = await res.json();
+
+                document.getElementById('total-customers').textContent = data.total_customers;
+                document.getElementById('active-subs').textContent = data.active_subscriptions;
+                document.getElementById('mrr').textContent = '$' + data.monthly_recurring_revenue.toLocaleString();
+                document.getElementById('total-revenue').textContent = '$' + data.total_revenue.toLocaleString();
+                document.getElementById('total-leads').textContent = data.total_leads;
+                document.getElementById('available-leads').textContent = data.available_leads;
+                document.getElementById('sold-leads').textContent = data.sold_leads;
+                document.getElementById('overage-revenue').textContent = '$' + data.overage_revenue.toLocaleString();
+            } catch (err) {
+                console.error('Failed to load analytics:', err);
+            }
+        }
+
+        // Load leads
+        async function loadLeads() {
+            const status = document.getElementById('status-filter')?.value || '';
+            const minScore = document.getElementById('min-score')?.value || '';
+
+            let url = '/admin/leads?';
+            if (status) url += `status=${status}&`;
+            if (minScore) url += `min_score=${minScore}`;
+
+            try {
+                const res = await fetch(url, {
+                    headers: { 'Authorization': 'Basic ' + btoa('admin:changeme') }
+                });
+                const data = await res.json();
+
+                const tbody = document.getElementById('leads-tbody');
+                tbody.innerHTML = data.leads.map(lead => `
+          <tr>
+            <td>${lead.full_name}</td>
+            <td>${lead.email}</td>
+            <td>${lead.move_date}</td>
+            <td><span class="score-badge score-${getScoreClass(lead.score)}">${lead.score}</span></td>
+            <td>${lead.status || 'available'}</td>
+            <td>
+              ${lead.status !== 'sold' ? `<button onclick="assignLead('${lead.id}')">Assign</button>` : 'Sold'}
+            </td>
+          </tr>
+        `).join('');
+            } catch (err) {
+                console.error('Failed to load leads:', err);
+            }
+        }
+
+        // Load customers
+        async function loadCustomers() {
+            try {
+                const res = await fetch('/admin/customers', {
+                    headers: { 'Authorization': 'Basic ' + btoa('admin:changeme') }
+                });
+                const data = await res.json();
+                currentCustomers = data.customers;
+
+                const tbody = document.getElementById('customers-tbody');
+                tbody.innerHTML = data.customers.map(customer => {
+                    const sub = customer.subscriptions?.[0] || {};
+                    return `
+            <tr>
+              <td>${customer.company_name}</td>
+              <td>${customer.email}</td>
+              <td>${sub.tier || 'N/A'}</td>
+              <td>${sub.leads_used || 0} / ${sub.leads_included || 0}</td>
+              <td>${sub.status || 'N/A'}</td>
+            </tr>
+          `;
+                }).join('');
+            } catch (err) {
+                console.error('Failed to load customers:', err);
+            }
+        }
+
+        function getScoreClass(score) {
+            if (score >= 80) return 'high';
+            if (score >= 60) return 'medium';
+            return 'low';
+        }
+
+        async function assignLead(leadId) {
+            const customerId = prompt('Enter customer ID to assign this lead:');
+            if (!customerId) return;
+
+            try {
+                const res = await fetch(`/admin/leads/${leadId}/assign?customer_id=${customerId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Basic ' + btoa('admin:changeme') }
+                });
+
+                if (res.ok) {
+                    alert('Lead assigned successfully!');
+                    loadLeads();
+                } else {
+                    const error = await res.json();
+                    alert('Failed to assign lead: ' + error.detail);
+                }
+            } catch (err) {
+                alert('Error assigning lead');
+            }
+        }
+
+        // Load initial data
+        loadAnalytics();
+    </script>
+</body>
+
+</html>

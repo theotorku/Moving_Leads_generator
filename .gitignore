@@ -6,3 +6,5 @@ __pycache__/
 venv/
 .idea/
 .vscode/
+test_customer.json
+test_system.py

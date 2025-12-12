@@ -9,3 +9,7 @@ python-dotenv
 setuptools>=78.1.1
 pytest
 pytest-asyncio
+stripe
+python-jose[cryptography]
+passlib[bcrypt]
+

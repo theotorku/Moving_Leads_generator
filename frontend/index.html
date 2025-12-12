@@ -1,43 +1,120 @@
-
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Moving Lead Form</title>
+  <title>Moving Leads AI</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
-  <h2>Moving Lead Capture</h2>
-  <form id="leadForm">
-    <input type="text" name="full_name" placeholder="Full Name" required><br>
-    <input type="email" name="email" placeholder="Email" required><br>
-    <input type="tel" name="phone" placeholder="Phone" required><br>
-    <input type="date" name="move_date" required><br>
-    <input type="text" name="origin_zip" placeholder="Origin ZIP" required><br>
-    <input type="text" name="destination_zip" placeholder="Destination ZIP" required><br>
-    <input type="text" name="home_size" placeholder="Home Size (e.g. 2BR)" required><br>
-    <input type="text" name="budget" placeholder="Budget Range" required><br>
-    <input type="text" name="urgency" placeholder="Urgency (e.g. ASAP)" required><br>
-    <button type="submit">Submit</button>
-  </form>
-  <pre id="result"></pre>
+
+  <div class="container">
+    <h2>MoveScout AI</h2>
+
+    <form id="leadForm">
+      <div class="form-group">
+        <input type="text" name="full_name" placeholder="Full Name" required>
+      </div>
+      <div class="form-group">
+        <input type="email" name="email" placeholder="Email Address" required>
+      </div>
+      <div class="form-group">
+        <input type="tel" name="phone" placeholder="Phone Number" required>
+      </div>
+
+      <div class="form-group" style="display: flex; gap: 10px;">
+        <input type="text" name="origin_zip" placeholder="Origin Zip" required style="flex: 1;">
+        <input type="text" name="destination_zip" placeholder="Dest Zip" required style="flex: 1;">
+      </div>
+
+      <div class="form-group">
+        <input type="date" name="move_date" required>
+      </div>
+
+      <div class="form-group">
+        <input type="text" name="home_size" placeholder="Home Size (e.g. 2 Bedroom Apt)" required>
+      </div>
+
+      <div class="form-group">
+        <input type="text" name="budget" placeholder="Estimated Budget ($)" required>
+      </div>
+
+      <div class="form-group">
+        <input type="text" name="urgency" placeholder="Urgency (e.g. ASAP, Flexible)" required>
+      </div>
+
+      <button type="submit" id="submitBtn">Analyze Lead</button>
+    </form>
+
+    <div id="loader" class="loader hidden">
+      <div class="spinner"></div>
+      <p>AI is analyzing lead potential...</p>
+    </div>
+
+    <div id="result" class="result-card hidden">
+      <div class="score-circle" id="scoreValue">--</div>
+      <p class="reasoning" id="reasoningText"></p>
+      <button onclick="location.reload()"
+        style="margin-top: 16px; background: transparent; border: 1px solid var(--primary-color);">Scan Another</button>
+    </div>
+  </div>
 
   <script>
     const form = document.getElementById('leadForm');
+    const loader = document.getElementById('loader');
+    const resultCard = document.getElementById('result');
+    const submitBtn = document.getElementById('submitBtn');
+    const scoreValue = document.getElementById('scoreValue');
+    const reasoningText = document.getElementById('reasoningText');
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      // UI: Loading State
+      form.classList.add('hidden');
+      loader.classList.remove('hidden');
+
       const formData = new FormData(form);
       const json = Object.fromEntries(formData.entries());
 
-      const res = await fetch('/leads/score', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(json)
-      });
+      try {
+        const res = await fetch('/leads/score', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(json)
+        });
 
-      const data = await res.json();
-      document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+        if (!res.ok) throw new Error("API Error");
+
+        const data = await res.json();
+
+        // UI: Success State
+        loader.classList.add('hidden');
+        resultCard.classList.remove('hidden');
+
+        scoreValue.innerText = data.score;
+        reasoningText.innerText = data.reasoning;
+
+        // Dynamic Color based on score
+        if (data.score < 50) {
+          scoreValue.style.borderColor = '#ef4444'; // Red
+          scoreValue.style.color = '#ef4444';
+        } else if (data.score < 80) {
+          scoreValue.style.borderColor = '#f59e0b'; // Amber
+          scoreValue.style.color = '#f59e0b';
+        }
+
+      } catch (err) {
+        console.error(err);
+        loader.innerHTML = "<p style='color: #ef4444;'>Something went wrong. Please try again.</p>";
+      }
     });
   </script>
 </body>
+
 </html>

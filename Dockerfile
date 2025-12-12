@@ -1,11 +1,10 @@
-FROM python:3.11-alpine
+FROM python:3.11-slim
 
 WORKDIR /app
 
 COPY ./requirements.txt /app
 
-RUN apk add --no-cache gcc musl-dev libffi-dev python3-dev \
-    && pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . /app
 
