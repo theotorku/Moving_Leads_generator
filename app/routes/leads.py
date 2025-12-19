@@ -28,9 +28,6 @@ async def score_lead(lead: RawLead):
         supabase.table("leads").insert(scored_lead_data).execute()
     except Exception as e:
         # In production, we might log this error but still return the score,
-        # or raise a 500 depending on requirements. For now, we print it.
-    except Exception as e:
-        # In production, we might log this error but still return the score,
         # or raise a 500 depending on requirements.
         logger.error(f"Error saving to DB: {e}", exc_info=True)
 
