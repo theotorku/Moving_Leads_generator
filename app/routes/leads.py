@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException
+import logging
 from ..models import RawLead, ScoredLead
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 from ..db import supabase
 from ..ai.scorer import analyze_lead
@@ -27,8 +29,9 @@ async def score_lead(lead: RawLead):
     except Exception as e:
         # In production, we might log this error but still return the score,
         # or raise a 500 depending on requirements. For now, we print it.
-        print(f"Error saving to DB: {e}")
-        import traceback
-        traceback.print_exc()
+    except Exception as e:
+        # In production, we might log this error but still return the score,
+        # or raise a 500 depending on requirements.
+        logger.error(f"Error saving to DB: {e}", exc_info=True)
 
     return ScoredLead(**scored_lead_data)
