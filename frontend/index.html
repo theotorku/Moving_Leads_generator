@@ -148,6 +148,8 @@
     const reasoningText = document.getElementById('reasoningText');
     const statusMessage = document.getElementById('statusMessage');
     const resetBtn = document.getElementById('resetBtn');
+    const LOW_SCORE_THRESHOLD = 50;
+    const HIGH_SCORE_THRESHOLD = 80;
 
     function setStatus(message, tone = 'info') {
       statusMessage.textContent = message;
@@ -162,9 +164,9 @@
 
     function setScoreTone(score) {
       scoreValue.classList.remove('score-low', 'score-medium', 'score-high');
-      if (score < 50) {
+      if (score < LOW_SCORE_THRESHOLD) {
         scoreValue.classList.add('score-low');
-      } else if (score < 80) {
+      } else if (score < HIGH_SCORE_THRESHOLD) {
         scoreValue.classList.add('score-medium');
       } else {
         scoreValue.classList.add('score-high');
@@ -206,7 +208,7 @@
         if (rawBody) {
           try {
             data = JSON.parse(rawBody);
-          } catch (parseError) {
+          } catch {
             data = {};
           }
         }

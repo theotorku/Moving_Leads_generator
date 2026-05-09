@@ -43,7 +43,6 @@ async def create_customer(email: str, company_name: str) -> dict:
         customer = stripe.Customer.create(
             email=email,
             name=company_name,
-            metadata={"company_name": company_name},
             api_key=api_key,
         )
         return {"stripe_customer_id": customer.id, "success": True}

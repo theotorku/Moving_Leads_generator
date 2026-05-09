@@ -45,7 +45,7 @@ def test_score_lead_endpoint_persists_scored_lead():
     payload = {
         "full_name": "John Doe",
         "email": "john@example.com",
-        "phone": "555-123-4567",
+        "phone": "+1 (555) 123-4567",
         "move_date": "2026-10-01",
         "origin_zip": "10001",
         "destination_zip": "90210",
