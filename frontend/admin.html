@@ -12,7 +12,24 @@
 </head>
 
 <body>
-    <div class="dashboard">
+    <section id="auth-panel" class="auth-panel">
+        <form id="auth-form" class="auth-card">
+            <p class="auth-eyebrow">Moving Leads AI</p>
+            <h1>Unlock the admin dashboard</h1>
+            <p class="auth-copy">Sign in with your configured admin credentials to load analytics, leads, and customers.</p>
+
+            <label for="admin-username">Username</label>
+            <input id="admin-username" type="text" autocomplete="username" required>
+
+            <label for="admin-password">Password</label>
+            <input id="admin-password" type="password" autocomplete="current-password" required>
+
+            <p id="auth-error" class="auth-error hidden" aria-live="polite"></p>
+            <button type="submit">Access dashboard</button>
+        </form>
+    </section>
+
+    <div class="dashboard hidden" id="dashboard">
         <aside class="sidebar">
             <h1>Moving Leads AI</h1>
             <nav>
@@ -123,31 +140,38 @@
         const API_BASE = '';
         let currentCustomers = [];
         let adminAuthHeader = sessionStorage.getItem('adminAuthHeader') || '';
+        const authPanel = document.getElementById('auth-panel');
+        const authForm = document.getElementById('auth-form');
+        const authError = document.getElementById('auth-error');
+        const dashboard = document.getElementById('dashboard');
 
-        function getAdminAuthHeader() {
-            if (adminAuthHeader) {
-                return adminAuthHeader;
-            }
+        function showAuthError(message) {
+            authError.textContent = message;
+            authError.classList.toggle('hidden', !message);
+        }
 
-            const username = window.prompt('Enter your admin username:');
-            const password = window.prompt('Enter your admin password:');
+        function showDashboard() {
+            authPanel.classList.add('hidden');
+            dashboard.classList.remove('hidden');
+        }
 
-            if (!username || password === null || password === '') {
-                throw new Error('Admin credentials are required to load the dashboard.');
-            }
-
-            adminAuthHeader = 'Basic ' + btoa(`${username}:${password}`);
-            sessionStorage.setItem('adminAuthHeader', adminAuthHeader);
-            return adminAuthHeader;
+        function showLogin() {
+            dashboard.classList.add('hidden');
+            authPanel.classList.remove('hidden');
         }
 
         async function fetchAdmin(url, options = {}) {
-            const headers = { ...(options.headers || {}), 'Authorization': getAdminAuthHeader() };
+            if (!adminAuthHeader) {
+                throw new Error('Admin credentials are required to load the dashboard.');
+            }
+
+            const headers = { ...(options.headers || {}), 'Authorization': adminAuthHeader };
             const response = await fetch(url, { ...options, headers });
 
             if (response.status === 401) {
                 adminAuthHeader = '';
                 sessionStorage.removeItem('adminAuthHeader');
+                showLogin();
                 throw new Error('Invalid admin credentials. Refresh and try again.');
             }
 
@@ -187,6 +211,7 @@
                 document.getElementById('overage-revenue').textContent = '$' + data.overage_revenue.toLocaleString();
             } catch (err) {
                 console.error('Failed to load analytics:', err);
+                showAuthError(err.message || 'Failed to load analytics.');
             }
         }
 
@@ -218,6 +243,7 @@
         `).join('');
             } catch (err) {
                 console.error('Failed to load leads:', err);
+                showAuthError(err.message || 'Failed to load leads.');
             }
         }
 
@@ -243,6 +269,7 @@
                 }).join('');
             } catch (err) {
                 console.error('Failed to load customers:', err);
+                showAuthError(err.message || 'Failed to load customers.');
             }
         }
 
@@ -273,8 +300,44 @@
             }
         }
 
-        // Load initial data
-        loadAnalytics();
+        authForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const username = document.getElementById('admin-username').value.trim();
+            const password = document.getElementById('admin-password').value;
+
+            adminAuthHeader = 'Basic ' + btoa(`${username}:${password}`);
+            sessionStorage.setItem('adminAuthHeader', adminAuthHeader);
+
+            try {
+                await loadAnalytics();
+                showAuthError('');
+                showDashboard();
+            } catch (err) {
+                adminAuthHeader = '';
+                sessionStorage.removeItem('adminAuthHeader');
+                showLogin();
+                showAuthError(err.message || 'Unable to authenticate.');
+            }
+        });
+
+        async function initializeDashboard() {
+            if (!adminAuthHeader) {
+                showLogin();
+                return;
+            }
+
+            try {
+                await loadAnalytics();
+                showDashboard();
+            } catch (err) {
+                adminAuthHeader = '';
+                sessionStorage.removeItem('adminAuthHeader');
+                showLogin();
+                showAuthError(err.message || 'Unable to authenticate.');
+            }
+        }
+
+        initializeDashboard();
     </script>
 </body>
 
