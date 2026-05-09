@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.ai.scorer import get_openai_client
-from app.config import get_settings
+from app.config import DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_USERNAME, get_settings
 from app.db import get_supabase_client
 from app.main import app
 
@@ -24,7 +24,10 @@ def clear_cached_clients():
     get_openai_client.cache_clear()
 
 
-def auth_headers(username: str = "admin", password: str = "changeme") -> dict[str, str]:
+def auth_headers(
+    username: str = DEFAULT_ADMIN_USERNAME,
+    password: str = DEFAULT_ADMIN_PASSWORD,
+) -> dict[str, str]:
     token = base64.b64encode(f"{username}:{password}".encode()).decode()
     return {"Authorization": f"Basic {token}"}
 

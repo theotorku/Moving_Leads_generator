@@ -139,7 +139,7 @@
     <script>
         const API_BASE = '';
         let currentCustomers = [];
-        let adminAuthHeader = sessionStorage.getItem('adminAuthHeader') || '';
+        let adminAuthHeader = '';
         const authPanel = document.getElementById('auth-panel');
         const authForm = document.getElementById('auth-form');
         const authError = document.getElementById('auth-error');
@@ -170,7 +170,6 @@
 
             if (response.status === 401) {
                 adminAuthHeader = '';
-                sessionStorage.removeItem('adminAuthHeader');
                 showLogin();
                 throw new Error('Invalid admin credentials. Refresh and try again.');
             }
@@ -306,7 +305,6 @@
             const password = document.getElementById('admin-password').value;
 
             adminAuthHeader = 'Basic ' + btoa(`${username}:${password}`);
-            sessionStorage.setItem('adminAuthHeader', adminAuthHeader);
 
             try {
                 await loadAnalytics();
@@ -314,7 +312,6 @@
                 showDashboard();
             } catch (err) {
                 adminAuthHeader = '';
-                sessionStorage.removeItem('adminAuthHeader');
                 showLogin();
                 showAuthError(err.message || 'Unable to authenticate.');
             }
@@ -331,7 +328,6 @@
                 showDashboard();
             } catch (err) {
                 adminAuthHeader = '';
-                sessionStorage.removeItem('adminAuthHeader');
                 showLogin();
                 showAuthError(err.message || 'Unable to authenticate.');
             }
