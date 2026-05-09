@@ -201,7 +201,16 @@
           body: JSON.stringify(payload)
         });
 
-        const data = await res.json();
+        const rawBody = await res.text();
+        let data = {};
+        if (rawBody) {
+          try {
+            data = JSON.parse(rawBody);
+          } catch (parseError) {
+            data = {};
+          }
+        }
+
         if (!res.ok) {
           throw new Error(data.detail || 'Something went wrong while scoring the lead.');
         }

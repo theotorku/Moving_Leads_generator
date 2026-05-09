@@ -119,3 +119,4 @@ def test_list_leads_validates_min_score_range():
     response = client.get("/admin/leads?min_score=200", headers=auth_headers())
 
     assert response.status_code == 422
+    assert "less than or equal to 100" in response.text
