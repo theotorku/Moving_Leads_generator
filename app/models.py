@@ -44,6 +44,12 @@ class PurchaseType(str, Enum):
     included = "included"
     overage = "overage"
 
+
+def _require_phone_digits(value: Optional[str]) -> Optional[str]:
+    if value and not any(character.isdigit() for character in value):
+        raise ValueError("Phone number must include at least one digit.")
+    return value
+
 class RawLead(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
 
@@ -60,9 +66,7 @@ class RawLead(BaseModel):
     @field_validator("phone")
     @classmethod
     def phone_must_include_digits(cls, value: str) -> str:
-        if not any(character.isdigit() for character in value):
-            raise ValueError("Phone number must include at least one digit.")
-        return value
+        return _require_phone_digits(value)
 
 class ScoredLead(RawLead):
     score: int
@@ -81,9 +85,7 @@ class Customer(BaseModel):
     @field_validator("phone")
     @classmethod
     def optional_phone_must_include_digits(cls, value: Optional[str]) -> Optional[str]:
-        if value and not any(character.isdigit() for character in value):
-            raise ValueError("Phone number must include at least one digit.")
-        return value
+        return _require_phone_digits(value)
 
 class Subscription(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
@@ -121,6 +123,4 @@ class CustomerRegistration(BaseModel):
     @field_validator("phone")
     @classmethod
     def registration_phone_must_include_digits(cls, value: Optional[str]) -> Optional[str]:
-        if value and not any(character.isdigit() for character in value):
-            raise ValueError("Phone number must include at least one digit.")
-        return value
+        return _require_phone_digits(value)
