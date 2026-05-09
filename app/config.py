@@ -11,7 +11,7 @@ DEFAULT_ADMIN_USERNAME: Final[str] = "admin"
 DEFAULT_ADMIN_PASSWORD: Final[str] = "changeme"
 
 
-def _optional_secret(env_name: str) -> SecretStr | None:
+def _env_secret_or_none(env_name: str) -> SecretStr | None:
     value = os.getenv(env_name)
     return SecretStr(value) if value else None
 
@@ -19,10 +19,10 @@ def _optional_secret(env_name: str) -> SecretStr | None:
 class Settings(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    openai_api_key: SecretStr | None = Field(default_factory=lambda: _optional_secret("OPENAI_API_KEY"))
+    openai_api_key: SecretStr | None = Field(default_factory=lambda: _env_secret_or_none("OPENAI_API_KEY"))
     supabase_url: str | None = Field(default_factory=lambda: os.getenv("SUPABASE_URL"))
-    supabase_key: SecretStr | None = Field(default_factory=lambda: _optional_secret("SUPABASE_KEY"))
-    stripe_secret_key: SecretStr | None = Field(default_factory=lambda: _optional_secret("STRIPE_SECRET_KEY"))
+    supabase_key: SecretStr | None = Field(default_factory=lambda: _env_secret_or_none("SUPABASE_KEY"))
+    stripe_secret_key: SecretStr | None = Field(default_factory=lambda: _env_secret_or_none("STRIPE_SECRET_KEY"))
     admin_username: str = Field(default_factory=lambda: os.getenv("ADMIN_USERNAME", DEFAULT_ADMIN_USERNAME))
     admin_password: SecretStr = Field(
         default_factory=lambda: SecretStr(os.getenv("ADMIN_PASSWORD", DEFAULT_ADMIN_PASSWORD))
