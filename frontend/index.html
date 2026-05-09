@@ -4,65 +4,140 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Moving Leads AI</title>
+  <title>Moving Leads AI | Score moving leads instantly</title>
   <link rel="stylesheet" href="/static/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 
 <body>
-
-  <div class="container">
-    <h2>MoveScout AI</h2>
-
-    <form id="leadForm">
-      <div class="form-group">
-        <input type="text" name="full_name" placeholder="Full Name" required>
+  <main class="page-shell">
+    <section class="hero panel">
+      <div class="eyebrow">Moving Leads AI</div>
+      <h1>AI-powered lead scoring for moving companies that need faster follow-up.</h1>
+      <p class="hero-copy">
+        Capture a lead, score intent in seconds, and hand your sales team the context they need to prioritize
+        high-value moves first.
+      </p>
+      <div class="hero-pills" aria-label="Key product benefits">
+        <span class="pill">Instant qualification</span>
+        <span class="pill">Built for movers</span>
+        <span class="pill">FastAPI-powered</span>
       </div>
-      <div class="form-group">
-        <input type="email" name="email" placeholder="Email Address" required>
+      <div class="hero-grid" aria-label="Why teams use Moving Leads AI">
+        <article class="hero-card">
+          <h2>Prioritize better</h2>
+          <p>Spot urgent, high-budget, and high-fit opportunities before your team wastes time on cold leads.</p>
+        </article>
+        <article class="hero-card">
+          <h2>Respond faster</h2>
+          <p>Give reps a score and reasoning instantly so callbacks happen while purchase intent is still high.</p>
+        </article>
+        <article class="hero-card">
+          <h2>Keep the workflow simple</h2>
+          <p>One form in, one score out, with the same submit-and-analyze flow your team already understands.</p>
+        </article>
       </div>
-      <div class="form-group">
-        <input type="tel" name="phone" placeholder="Phone Number" required>
-      </div>
+    </section>
 
-      <div class="form-group" style="display: flex; gap: 10px;">
-        <input type="text" name="origin_zip" placeholder="Origin Zip" required style="flex: 1;">
-        <input type="text" name="destination_zip" placeholder="Dest Zip" required style="flex: 1;">
-      </div>
-
-      <div class="form-group">
-        <input type="date" name="move_date" required>
-      </div>
-
-      <div class="form-group">
-        <input type="text" name="home_size" placeholder="Home Size (e.g. 2 Bedroom Apt)" required>
-      </div>
-
-      <div class="form-group">
-        <input type="text" name="budget" placeholder="Estimated Budget ($)" required>
-      </div>
-
-      <div class="form-group">
-        <input type="text" name="urgency" placeholder="Urgency (e.g. ASAP, Flexible)" required>
+    <section class="form-panel panel" aria-labelledby="lead-form-title">
+      <div class="section-heading">
+        <p class="eyebrow">Analyze a lead</p>
+        <h2 id="lead-form-title">Qualify a move request in under a minute</h2>
+        <p class="section-copy">
+          Use structured inputs for cleaner data, clearer scores, and better downstream routing.
+        </p>
       </div>
 
-      <button type="submit" id="submitBtn">Analyze Lead</button>
-    </form>
+      <div id="statusMessage" class="status-banner" aria-live="polite"></div>
 
-    <div id="loader" class="loader hidden">
-      <div class="spinner"></div>
-      <p>AI is analyzing lead potential...</p>
-    </div>
+      <form id="leadForm" novalidate>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="full_name">Full name</label>
+            <input id="full_name" type="text" name="full_name" autocomplete="name" required>
+          </div>
 
-    <div id="result" class="result-card hidden">
-      <div class="score-circle" id="scoreValue">--</div>
-      <p class="reasoning" id="reasoningText"></p>
-      <button onclick="location.reload()"
-        style="margin-top: 16px; background: transparent; border: 1px solid var(--primary-color);">Scan Another</button>
-    </div>
-  </div>
+          <div class="form-group">
+            <label for="email">Email address</label>
+            <input id="email" type="email" name="email" autocomplete="email" required>
+          </div>
+
+          <div class="form-group">
+            <label for="phone">Phone number</label>
+            <input id="phone" type="tel" name="phone" autocomplete="tel" inputmode="tel"
+              aria-describedby="phoneHelp" required>
+            <p id="phoneHelp" class="help-text">Digits, spaces, plus signs, and dashes are accepted.</p>
+          </div>
+
+          <div class="form-group">
+            <label for="move_date">Move date</label>
+            <input id="move_date" type="date" name="move_date" required>
+          </div>
+
+          <div class="form-group">
+            <label for="origin_zip">Origin ZIP code</label>
+            <input id="origin_zip" type="text" name="origin_zip" inputmode="numeric" pattern="[0-9]{5}"
+              maxlength="5" aria-describedby="zipHelp" required>
+          </div>
+
+          <div class="form-group">
+            <label for="destination_zip">Destination ZIP code</label>
+            <input id="destination_zip" type="text" name="destination_zip" inputmode="numeric" pattern="[0-9]{5}"
+              maxlength="5" aria-describedby="zipHelp" required>
+            <p id="zipHelp" class="help-text">Enter 5-digit U.S. ZIP codes for more reliable scoring.</p>
+          </div>
+
+          <div class="form-group">
+            <label for="home_size">Home size</label>
+            <select id="home_size" name="home_size" required>
+              <option value="">Select a home size</option>
+              <option value="studio">Studio</option>
+              <option value="1_bedroom">1 bedroom</option>
+              <option value="2_bedroom">2 bedroom</option>
+              <option value="3_bedroom">3 bedroom</option>
+              <option value="4_plus_bedroom">4+ bedroom</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="budget">Estimated budget</label>
+            <input id="budget" type="number" name="budget" min="1" max="50000" step="100" inputmode="numeric"
+              aria-describedby="budgetHelp" required>
+            <p id="budgetHelp" class="help-text">Use the customer’s estimated move budget in USD.</p>
+          </div>
+
+          <div class="form-group form-group-full">
+            <label for="urgency">Urgency</label>
+            <select id="urgency" name="urgency" required>
+              <option value="">Select urgency</option>
+              <option value="same_week">Move is happening this week</option>
+              <option value="this_month">Move is happening this month</option>
+              <option value="planning_ahead">Still planning ahead</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="submit" id="submitBtn">Analyze lead</button>
+      </form>
+
+      <div id="loader" class="loader hidden" aria-live="polite">
+        <div class="spinner" aria-hidden="true"></div>
+        <p>Analyzing lead quality and intent…</p>
+      </div>
+
+      <div id="result" class="result-card hidden" aria-live="polite">
+        <div class="result-header">
+          <p class="eyebrow">Lead score</p>
+          <h2>Prioritize your next follow-up</h2>
+        </div>
+        <div class="score-circle score-high" id="scoreValue">--</div>
+        <p class="reasoning" id="reasoningText"></p>
+        <button type="button" id="resetBtn" class="secondary-button">Analyze another lead</button>
+      </div>
+    </section>
+  </main>
 
   <script>
     const form = document.getElementById('leadForm');
@@ -71,48 +146,81 @@
     const submitBtn = document.getElementById('submitBtn');
     const scoreValue = document.getElementById('scoreValue');
     const reasoningText = document.getElementById('reasoningText');
+    const statusMessage = document.getElementById('statusMessage');
+    const resetBtn = document.getElementById('resetBtn');
+
+    function setStatus(message, tone = 'info') {
+      statusMessage.textContent = message;
+      statusMessage.className = message ? `status-banner status-${tone}` : 'status-banner';
+    }
+
+    function setLoadingState(isLoading) {
+      submitBtn.disabled = isLoading;
+      loader.classList.toggle('hidden', !isLoading);
+      form.classList.toggle('hidden', isLoading);
+    }
+
+    function setScoreTone(score) {
+      scoreValue.classList.remove('score-low', 'score-medium', 'score-high');
+      if (score < 50) {
+        scoreValue.classList.add('score-low');
+      } else if (score < 80) {
+        scoreValue.classList.add('score-medium');
+      } else {
+        scoreValue.classList.add('score-high');
+      }
+    }
+
+    function resetExperience() {
+      form.reset();
+      resultCard.classList.add('hidden');
+      form.classList.remove('hidden');
+      scoreValue.textContent = '--';
+      reasoningText.textContent = '';
+      setStatus('');
+    }
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      // UI: Loading State
-      form.classList.add('hidden');
-      loader.classList.remove('hidden');
+      if (!form.reportValidity()) {
+        setStatus('Please complete the highlighted fields before analyzing the lead.', 'error');
+        return;
+      }
+
+      setStatus('Submitting lead details for scoring…');
+      setLoadingState(true);
 
       const formData = new FormData(form);
-      const json = Object.fromEntries(formData.entries());
+      const payload = Object.fromEntries(formData.entries());
 
       try {
         const res = await fetch('/leads/score', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(json)
+          body: JSON.stringify(payload)
         });
 
-        if (!res.ok) throw new Error("API Error");
-
         const data = await res.json();
-
-        // UI: Success State
-        loader.classList.add('hidden');
-        resultCard.classList.remove('hidden');
-
-        scoreValue.innerText = data.score;
-        reasoningText.innerText = data.reasoning;
-
-        // Dynamic Color based on score
-        if (data.score < 50) {
-          scoreValue.style.borderColor = '#ef4444'; // Red
-          scoreValue.style.color = '#ef4444';
-        } else if (data.score < 80) {
-          scoreValue.style.borderColor = '#f59e0b'; // Amber
-          scoreValue.style.color = '#f59e0b';
+        if (!res.ok) {
+          throw new Error(data.detail || 'Something went wrong while scoring the lead.');
         }
 
+        loader.classList.add('hidden');
+        resultCard.classList.remove('hidden');
+        scoreValue.textContent = data.score;
+        reasoningText.textContent = data.reasoning;
+        setScoreTone(data.score);
+        setStatus('Lead analyzed successfully.', 'success');
       } catch (err) {
         console.error(err);
-        loader.innerHTML = "<p style='color: #ef4444;'>Something went wrong. Please try again.</p>";
+        setStatus(err.message || 'Something went wrong. Please try again.', 'error');
+        setLoadingState(false);
       }
+    });
+
+    resetBtn.addEventListener('click', () => {
+      resetExperience();
     });
   </script>
 </body>

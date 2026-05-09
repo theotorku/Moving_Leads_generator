@@ -1,11 +1,11 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 import logging
 from ..models import RawLead, ScoredLead
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-from ..db import supabase
+from ..db import get_supabase_client
 from ..ai.scorer import analyze_lead
 
 @router.post("/leads/score", response_model=ScoredLead)
@@ -16,19 +16,15 @@ async def score_lead(lead: RawLead):
     score = ai_result.get("score", 0)
     reasoning = ai_result.get("reasoning", "No reasoning provided.")
     
-    scored_lead_data = lead.dict()
-    # Convert date objects to ISO strings for JSON serialization
-    if scored_lead_data.get("move_date"):
-        scored_lead_data["move_date"] = scored_lead_data["move_date"].isoformat()
-        
+    scored_lead_data = lead.model_dump(mode="json")
     scored_lead_data.update({"score": score, "reasoning": reasoning})
     
     # Persist to Supabase
     try:
-        supabase.table("leads").insert(scored_lead_data).execute()
-    except Exception as e:
-        # In production, we might log this error but still return the score,
-        # or raise a 500 depending on requirements.
-        logger.error(f"Error saving to DB: {e}", exc_info=True)
+        get_supabase_client().table("leads").insert(scored_lead_data).execute()
+    except RuntimeError:
+        logger.warning("Lead scored but not persisted because Supabase is not configured.")
+    except Exception:
+        logger.exception("Lead scored but could not be persisted")
 
     return ScoredLead(**scored_lead_data)

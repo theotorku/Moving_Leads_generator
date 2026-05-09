@@ -1,16 +1,10 @@
-import os
+import logging
+
 import stripe
-from dotenv import load_dotenv
 
-load_dotenv()
+from ..config import get_settings
 
-stripe_key = os.getenv("STRIPE_SECRET_KEY")
-if not stripe_key:
-    print("WARNING: STRIPE_SECRET_KEY not found in environment variables!")
-    print("Customer registration will fail. Please add STRIPE_SECRET_KEY to your .env file.")
-else:
-    stripe.api_key = stripe_key
-    print(f"✅ Stripe initialized with key: {stripe_key[:7]}...")
+logger = logging.getLogger(__name__)
 
 # Pricing tiers configuration
 PRICING_TIERS = {
@@ -34,15 +28,24 @@ PRICING_TIERS = {
 async def create_customer(email: str, company_name: str) -> dict:
     """Create a Stripe customer"""
     try:
+        settings = get_settings()
+        if not settings.stripe_secret_key:
+            logger.warning("Stripe customer creation requested without STRIPE_SECRET_KEY configured.")
+            return {"success": False, "error": "Payment provider is not configured."}
+
+        stripe.api_key = settings.stripe_secret_key.get_secret_value()
         customer = stripe.Customer.create(
             email=email,
             name=company_name,
             metadata={"company_name": company_name}
         )
         return {"stripe_customer_id": customer.id, "success": True}
-    except Exception as e:
-        print(f"Stripe customer creation error: {e}")
-        return {"success": False, "error": str(e)}
+    except stripe.error.StripeError:
+        logger.exception("Stripe customer creation failed")
+        return {"success": False, "error": "Unable to create the customer in Stripe."}
+    except Exception:
+        logger.exception("Unexpected Stripe customer creation error")
+        return {"success": False, "error": "Unexpected payment provider error."}
 
 async def create_subscription(customer_id: str, tier: str) -> dict:
     """Create a Stripe subscription for a customer"""
@@ -50,6 +53,12 @@ async def create_subscription(customer_id: str, tier: str) -> dict:
         return {"success": False, "error": "Invalid tier"}
     
     try:
+        settings = get_settings()
+        if not settings.stripe_secret_key:
+            logger.warning("Stripe subscription creation requested without STRIPE_SECRET_KEY configured.")
+            return {"success": False, "error": "Payment provider is not configured."}
+
+        stripe.api_key = settings.stripe_secret_key.get_secret_value()
         # In production, you'd create a Stripe Price/Product first
         # For now, we'll use a simple subscription without a product
         subscription = stripe.Subscription.create(
@@ -74,9 +83,12 @@ async def create_subscription(customer_id: str, tier: str) -> dict:
             "subscription_id": subscription.id,
             "status": subscription.status
         }
-    except Exception as e:
-        print(f"Stripe subscription creation error: {e}")
-        return {"success": False, "error": str(e)}
+    except stripe.error.StripeError:
+        logger.exception("Stripe subscription creation failed")
+        return {"success": False, "error": "Unable to create the subscription in Stripe."}
+    except Exception:
+        logger.exception("Unexpected Stripe subscription creation error")
+        return {"success": False, "error": "Unexpected payment provider error."}
 
 async def charge_overage(customer_id: str, num_leads: int, tier: str) -> dict:
     """Charge for overage leads"""
@@ -86,6 +98,12 @@ async def charge_overage(customer_id: str, num_leads: int, tier: str) -> dict:
     amount = num_leads * PRICING_TIERS[tier]["overage_price"]
     
     try:
+        settings = get_settings()
+        if not settings.stripe_secret_key:
+            logger.warning("Stripe overage charge requested without STRIPE_SECRET_KEY configured.")
+            return {"success": False, "error": "Payment provider is not configured."}
+
+        stripe.api_key = settings.stripe_secret_key.get_secret_value()
         charge = stripe.PaymentIntent.create(
             amount=int(amount * 100),  # Convert to cents
             currency="usd",
@@ -94,6 +112,9 @@ async def charge_overage(customer_id: str, num_leads: int, tier: str) -> dict:
             metadata={"type": "overage", "num_leads": num_leads}
         )
         return {"success": True, "charge_id": charge.id, "amount": amount}
-    except Exception as e:
-        print(f"Stripe overage charge error: {e}")
-        return {"success": False, "error": str(e)}
+    except stripe.error.StripeError:
+        logger.exception("Stripe overage charge failed")
+        return {"success": False, "error": "Unable to charge the overage in Stripe."}
+    except Exception:
+        logger.exception("Unexpected Stripe overage charge error")
+        return {"success": False, "error": "Unexpected payment provider error."}

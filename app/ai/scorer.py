@@ -1,12 +1,29 @@
-import os
 import json
 import logging
+from functools import lru_cache
+
 from openai import AsyncOpenAI
+
+from ..config import get_settings
 from ..models import RawLead
 
 logger = logging.getLogger(__name__)
 
-client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
+@lru_cache
+def get_openai_client() -> AsyncOpenAI | None:
+    settings = get_settings()
+    if not settings.openai_api_key:
+        return None
+
+    return AsyncOpenAI(api_key=settings.openai_api_key.get_secret_value())
+
+
+def _fallback_response() -> dict:
+    return {
+        "score": 50,
+        "reasoning": "AI scoring is temporarily unavailable. Manual review recommended.",
+    }
 
 async def analyze_lead(lead: RawLead) -> dict:
     """
@@ -34,6 +51,11 @@ async def analyze_lead(lead: RawLead) -> dict:
     }}
     """
 
+    client = get_openai_client()
+    if client is None:
+        logger.warning("OPENAI_API_KEY is not configured; using fallback lead scoring.")
+        return _fallback_response()
+
     try:
         response = await client.chat.completions.create(
             model="gpt-3.5-turbo", # or gpt-4 if available/preferred
@@ -45,10 +67,6 @@ async def analyze_lead(lead: RawLead) -> dict:
         content = response.choices[0].message.content
         result = json.loads(content)
         return result
-    except Exception as e:
-        logger.error(f"AI Scoring Error: {e}")
-        # Fallback in case of AI failure
-        return {
-            "score": 50, 
-            "reasoning": "AI scoring failed. Manual review recommended."
-        }
+    except Exception:
+        logger.exception("AI scoring request failed")
+        return _fallback_response()

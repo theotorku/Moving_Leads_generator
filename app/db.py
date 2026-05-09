@@ -1,10 +1,14 @@
-import os
-from supabase import create_client, Client
-from dotenv import load_dotenv
+from functools import lru_cache
 
-load_dotenv()
+from supabase import Client, create_client
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+from .config import get_settings
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+@lru_cache
+def get_supabase_client() -> Client:
+    settings = get_settings()
+    if not settings.supabase_url or not settings.supabase_key:
+        raise RuntimeError("Supabase is not configured.")
+
+    return create_client(settings.supabase_url, settings.supabase_key.get_secret_value())

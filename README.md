@@ -35,7 +35,7 @@ An AI-powered lead generation and monetization platform for the moving industry,
 ## 📁 Project Structure
 
 ```
-moving-leads-ai/
+Moving_Leads_generator/
 │
 ├── app/
 │   ├── main.py                  # FastAPI app & routes
@@ -51,8 +51,8 @@ moving-leads-ai/
 │       └── stripe_service.py    # Payment processing
 │
 ├── frontend/
-│   ├── index.html               # Lead capture form
-│   ├── style.css                # Modern UI styling
+│   ├── index.html               # Product landing page + lead capture form
+│   ├── style.css                # Landing page and form styling
 │   ├── admin.html               # Admin dashboard
 │   └── admin.css                # Dashboard styling
 │
@@ -78,7 +78,7 @@ moving-leads-ai/
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/theotorku/Moving_Leads_generator.git
-   cd moving-leads-ai
+   cd Moving_Leads_generator
    ```
 
 2. **Create virtual environment:**
@@ -107,17 +107,18 @@ moving-leads-ai/
    STRIPE_SECRET_KEY=sk_test_...
    STRIPE_PUBLISHABLE_KEY=pk_test_...
    
-   # Admin Dashboard
-   ADMIN_USERNAME=admin
-   ADMIN_PASSWORD=your-secure-password
+    # Admin Dashboard (replace defaults before production)
+    ADMIN_USERNAME=admin
+    ADMIN_PASSWORD=your-secure-password
    ```
 
-5. **Set up Supabase database:**
-   
-   Run the SQL schema in your Supabase SQL Editor:
-   - Navigate to your Supabase project
-   - Go to SQL Editor
-   - Run the schema from `database_schema.sql` (see artifacts)
+5. **Set up Supabase data tables:**
+    
+   Create the tables used by the application in your Supabase project:
+   - `leads`
+   - `customers`
+   - `subscriptions`
+   - `lead_purchases`
 
 6. **Run the application:**
    ```bash
@@ -144,11 +145,6 @@ moving-leads-ai/
 Run the test suite:
 ```bash
 pytest
-```
-
-Run the system integration test:
-```bash
-python test_system.py
 ```
 
 ## 📊 API Endpoints
@@ -190,7 +186,7 @@ The platform uses a hybrid monetization strategy:
 
 ## 🔒 Security
 
-- Environment-based configuration
+- Startup validation with environment-based configuration warnings
 - Basic HTTP authentication for admin routes
 - Row-level security ready (Supabase)
 - Secrets excluded from version control

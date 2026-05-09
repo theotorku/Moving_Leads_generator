@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - MoveScout AI</title>
+    <title>Admin Dashboard - Moving Leads AI</title>
     <link rel="stylesheet" href="/static/admin.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,7 +14,7 @@
 <body>
     <div class="dashboard">
         <aside class="sidebar">
-            <h1>MoveScout AI</h1>
+            <h1>Moving Leads AI</h1>
             <nav>
                 <button class="nav-btn active" data-view="analytics">📊 Analytics</button>
                 <button class="nav-btn" data-view="leads">📋 Leads</button>
@@ -45,7 +45,7 @@
                     </div>
                 </div>
 
-                <div class="stats-grid" style="margin-top: 20px;">
+                <div class="stats-grid section-spacing">
                     <div class="stat-card">
                         <div class="stat-value" id="total-leads">--</div>
                         <div class="stat-label">Total Leads</div>
@@ -122,6 +122,37 @@
     <script>
         const API_BASE = '';
         let currentCustomers = [];
+        let adminAuthHeader = sessionStorage.getItem('adminAuthHeader') || '';
+
+        function getAdminAuthHeader() {
+            if (adminAuthHeader) {
+                return adminAuthHeader;
+            }
+
+            const username = window.prompt('Enter your admin username:');
+            const password = window.prompt('Enter your admin password:');
+
+            if (!username || password === null || password === '') {
+                throw new Error('Admin credentials are required to load the dashboard.');
+            }
+
+            adminAuthHeader = 'Basic ' + btoa(`${username}:${password}`);
+            sessionStorage.setItem('adminAuthHeader', adminAuthHeader);
+            return adminAuthHeader;
+        }
+
+        async function fetchAdmin(url, options = {}) {
+            const headers = { ...(options.headers || {}), 'Authorization': getAdminAuthHeader() };
+            const response = await fetch(url, { ...options, headers });
+
+            if (response.status === 401) {
+                adminAuthHeader = '';
+                sessionStorage.removeItem('adminAuthHeader');
+                throw new Error('Invalid admin credentials. Refresh and try again.');
+            }
+
+            return response;
+        }
 
         // Navigation
         document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -143,9 +174,7 @@
         // Load analytics
         async function loadAnalytics() {
             try {
-                const res = await fetch('/admin/analytics', {
-                    headers: { 'Authorization': 'Basic ' + btoa('admin:changeme') }
-                });
+                const res = await fetchAdmin('/admin/analytics');
                 const data = await res.json();
 
                 document.getElementById('total-customers').textContent = data.total_customers;
@@ -171,9 +200,7 @@
             if (minScore) url += `min_score=${minScore}`;
 
             try {
-                const res = await fetch(url, {
-                    headers: { 'Authorization': 'Basic ' + btoa('admin:changeme') }
-                });
+                const res = await fetchAdmin(url);
                 const data = await res.json();
 
                 const tbody = document.getElementById('leads-tbody');
@@ -197,9 +224,7 @@
         // Load customers
         async function loadCustomers() {
             try {
-                const res = await fetch('/admin/customers', {
-                    headers: { 'Authorization': 'Basic ' + btoa('admin:changeme') }
-                });
+                const res = await fetchAdmin('/admin/customers');
                 const data = await res.json();
                 currentCustomers = data.customers;
 
@@ -232,9 +257,8 @@
             if (!customerId) return;
 
             try {
-                const res = await fetch(`/admin/leads/${leadId}/assign?customer_id=${customerId}`, {
-                    method: 'POST',
-                    headers: { 'Authorization': 'Basic ' + btoa('admin:changeme') }
+                const res = await fetchAdmin(`/admin/leads/${leadId}/assign?customer_id=${customerId}`, {
+                    method: 'POST'
                 });
 
                 if (res.ok) {
