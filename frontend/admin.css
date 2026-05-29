@@ -237,6 +237,125 @@ h2 {
     background: var(--primary-hover);
 }
 
+.assignment-panel {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.assignment-panel-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.section-kicker {
+    color: #a5b4fc;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    margin-bottom: 4px;
+}
+
+.assignment-summary {
+    color: #cbd5e1;
+    margin-bottom: 16px;
+}
+
+.assignment-options {
+    display: grid;
+    gap: 12px;
+}
+
+.assignment-card {
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    padding: 16px;
+    background: rgba(15, 23, 42, 0.55);
+}
+
+.assignment-card-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.assignment-card-header h4 {
+    margin-bottom: 4px;
+}
+
+.assignment-card-header p,
+.assignment-meta,
+.assignment-reason,
+.customer-note {
+    color: #cbd5e1;
+    line-height: 1.5;
+}
+
+.assignment-ready {
+    border-color: rgba(16, 185, 129, 0.35);
+}
+
+.assignment-blocked {
+    border-color: rgba(239, 68, 68, 0.35);
+}
+
+.recommendation-pill,
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: capitalize;
+}
+
+.recommendation-pill {
+    background: rgba(99, 102, 241, 0.18);
+    color: #c7d2fe;
+}
+
+.status-available,
+.status-active,
+.status-trialing {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success-color);
+}
+
+.status-sold,
+.status-past_due,
+.status-unpaid,
+.status-incomplete,
+.status-paused,
+.status-canceled {
+    background: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+}
+
+.status-unknown {
+    background: rgba(148, 163, 184, 0.2);
+    color: #cbd5e1;
+}
+
+.secondary-btn {
+    background: transparent;
+    border: 1px solid var(--glass-border);
+}
+
+.secondary-btn:hover {
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.empty-state {
+    color: #cbd5e1;
+}
+
 table {
     width: 100%;
     background: var(--glass-bg);

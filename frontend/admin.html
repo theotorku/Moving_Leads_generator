@@ -94,6 +94,17 @@
                     <input type="number" id="min-score" placeholder="Min Score" min="0" max="100">
                     <button onclick="loadLeads()">Filter</button>
                 </div>
+                <section id="assignment-panel" class="assignment-panel hidden" aria-live="polite">
+                    <div class="assignment-panel-header">
+                        <div>
+                            <p class="section-kicker">Guided assignment</p>
+                            <h3 id="assignment-title">Choose the best customer for this lead</h3>
+                        </div>
+                        <button type="button" class="secondary-btn" onclick="closeAssignmentPanel()">Close</button>
+                    </div>
+                    <p id="assignment-summary" class="assignment-summary"></p>
+                    <div id="assignment-options" class="assignment-options"></div>
+                </section>
                 <table id="leads-table">
                     <thead>
                         <tr>
@@ -124,11 +135,12 @@
                             <th>Tier</th>
                             <th>Leads Used</th>
                             <th>Status</th>
+                            <th>Billing</th>
                         </tr>
                     </thead>
                     <tbody id="customers-tbody">
                         <tr>
-                            <td colspan="5">Loading...</td>
+                            <td colspan="6">Loading...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -140,10 +152,14 @@
         const API_BASE = '';
         let currentCustomers = [];
         let adminAuthHeader = '';
+        let activeAssignmentLeadId = null;
         const authPanel = document.getElementById('auth-panel');
         const authForm = document.getElementById('auth-form');
         const authError = document.getElementById('auth-error');
         const dashboard = document.getElementById('dashboard');
+        const assignmentPanel = document.getElementById('assignment-panel');
+        const assignmentSummary = document.getElementById('assignment-summary');
+        const assignmentOptions = document.getElementById('assignment-options');
 
         function showAuthError(message) {
             authError.textContent = message;
@@ -158,6 +174,26 @@
         function showLogin() {
             dashboard.classList.add('hidden');
             authPanel.classList.remove('hidden');
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
+        }
+
+        function formatCurrency(amount) {
+            return '$' + Number(amount || 0).toLocaleString();
+        }
+
+        function closeAssignmentPanel() {
+            activeAssignmentLeadId = null;
+            assignmentSummary.textContent = '';
+            assignmentOptions.innerHTML = '';
+            assignmentPanel.classList.add('hidden');
         }
 
         async function fetchAdmin(url, options = {}) {
@@ -234,9 +270,9 @@
             <td>${lead.email}</td>
             <td>${lead.move_date}</td>
             <td><span class="score-badge score-${getScoreClass(lead.score)}">${lead.score}</span></td>
-            <td>${lead.status || 'available'}</td>
+            <td><span class="status-pill status-${lead.status || 'available'}">${lead.status || 'available'}</span></td>
             <td>
-              ${lead.status !== 'sold' ? `<button onclick="assignLead('${lead.id}')">Assign</button>` : 'Sold'}
+              ${lead.status !== 'sold' ? `<button onclick="openAssignmentPanel('${lead.id}')">Assign</button>` : 'Sold'}
             </td>
           </tr>
         `).join('');
@@ -262,7 +298,8 @@
               <td>${customer.email}</td>
               <td>${sub.tier || 'N/A'}</td>
               <td>${sub.leads_used || 0} / ${sub.leads_included || 0}</td>
-              <td>${sub.status || 'N/A'}</td>
+              <td><span class="status-pill status-${sub.status || 'unknown'}">${sub.status || 'N/A'}</span></td>
+              <td class="customer-note">${customer.billing_message || 'No billing details available.'}</td>
             </tr>
           `;
                 }).join('');
@@ -278,24 +315,66 @@
             return 'low';
         }
 
-        async function assignLead(leadId) {
-            const customerId = prompt('Enter customer ID to assign this lead:');
-            if (!customerId) return;
+        async function openAssignmentPanel(leadId) {
+            activeAssignmentLeadId = leadId;
+            assignmentPanel.classList.remove('hidden');
+            assignmentSummary.textContent = 'Loading customer recommendations…';
+            assignmentOptions.innerHTML = '';
 
             try {
-                const res = await fetchAdmin(`/admin/leads/${leadId}/assign?customer_id=${customerId}`, {
+                const res = await fetchAdmin(`/admin/leads/${leadId}/assignment-options`);
+                const data = await res.json();
+
+                assignmentSummary.textContent = `${data.lead.full_name} • score ${data.lead.score} • ${data.lead.status}`;
+                if (!data.recommendations.length) {
+                    assignmentOptions.innerHTML = '<p class="empty-state">No subscribed customers are ready for assignment yet.</p>';
+                    return;
+                }
+
+                assignmentOptions.innerHTML = data.recommendations.map((candidate, index) => `
+                    <article class="assignment-card ${candidate.can_assign ? 'assignment-ready' : 'assignment-blocked'}">
+                        <div class="assignment-card-header">
+                            <div>
+                                <h4>${escapeHtml(candidate.company_name)}</h4>
+                                <p>${escapeHtml(candidate.subscription_tier)} plan • ${escapeHtml(candidate.subscription_status)}</p>
+                            </div>
+                            ${index === 0 && candidate.can_assign ? '<span class="recommendation-pill">Best fit</span>' : ''}
+                        </div>
+                        <p class="assignment-meta">
+                            ${candidate.leads_remaining} included leads remaining • ${candidate.purchase_type === 'overage' ? `Overage ${formatCurrency(candidate.projected_price)}` : 'Included allocation'}
+                        </p>
+                        <p class="assignment-reason">${escapeHtml(candidate.billing_message)}</p>
+                        <button
+                            type="button"
+                            ${candidate.can_assign ? '' : 'disabled'}
+                            onclick="assignLeadToCustomer('${candidate.customer_id}')"
+                        >
+                            ${candidate.can_assign ? 'Assign lead' : 'Billing action required'}
+                        </button>
+                    </article>
+                `).join('');
+            } catch (err) {
+                assignmentSummary.textContent = err.message || 'Unable to load assignment options.';
+            }
+        }
+
+        async function assignLeadToCustomer(customerId) {
+            if (!activeAssignmentLeadId) return;
+
+            try {
+                const res = await fetchAdmin(`/admin/leads/${activeAssignmentLeadId}/assign?customer_id=${customerId}`, {
                     method: 'POST'
                 });
+                const data = await res.json();
 
-                if (res.ok) {
-                    alert('Lead assigned successfully!');
-                    loadLeads();
-                } else {
-                    const error = await res.json();
-                    alert('Failed to assign lead: ' + error.detail);
+                if (!res.ok) {
+                    throw new Error(data.detail || 'Failed to assign lead.');
                 }
+
+                assignmentSummary.textContent = data.message;
+                await Promise.all([loadLeads(), loadCustomers(), loadAnalytics()]);
             } catch (err) {
-                alert('Error assigning lead');
+                assignmentSummary.textContent = err.message || 'Error assigning lead.';
             }
         }
 

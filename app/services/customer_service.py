@@ -4,7 +4,14 @@ from fastapi import HTTPException
 
 from ..db import get_supabase_client
 from ..models import CustomerRegistration
-from .stripe_service import PRICING_TIERS, create_customer, create_subscription
+from .stripe_service import (
+    PRICING_TIERS,
+    billing_status_message,
+    can_receive_leads,
+    create_customer,
+    create_subscription,
+    sync_subscription_record,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +21,32 @@ def _get_supabase():
         return get_supabase_client()
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail="Database is not configured.") from exc
+
+
+def _load_customer(customer_id: str) -> dict:
+    customer = _get_supabase().table("customers").select("*").eq("id", customer_id).execute()
+    if not customer.data:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return customer.data[0]
+
+
+def _pick_current_subscription(subscriptions: list[dict]) -> dict:
+    return sorted(
+        subscriptions,
+        key=lambda subscription: (
+            subscription.get("status") in {"active", "trialing"},
+            subscription.get("created_at") or "",
+        ),
+        reverse=True,
+    )[0]
+
+
+def _load_current_subscription(supabase, customer_id: str) -> dict:
+    subscriptions = supabase.table("subscriptions").select("*").eq("customer_id", customer_id).execute()
+    if not subscriptions.data:
+        raise HTTPException(status_code=404, detail="No active subscription found")
+
+    return sync_subscription_record(supabase, _pick_current_subscription(subscriptions.data))
 
 
 async def register_customer_with_subscription(registration: CustomerRegistration) -> dict:
@@ -65,13 +98,8 @@ async def register_customer_with_subscription(registration: CustomerRegistration
 
 
 def get_customer_record(customer_id: str) -> dict:
-    supabase = _get_supabase()
-
     try:
-        customer = supabase.table("customers").select("*").eq("id", customer_id).execute()
-        if not customer.data:
-            raise HTTPException(status_code=404, detail="Customer not found")
-        return customer.data[0]
+        return _load_customer(customer_id)
     except HTTPException:
         raise
     except Exception:
@@ -83,29 +111,67 @@ def get_customer_usage_summary(customer_id: str) -> dict:
     supabase = _get_supabase()
 
     try:
-        subscription = (
-            supabase.table("subscriptions")
-            .select("*")
-            .eq("customer_id", customer_id)
-            .eq("status", "active")
-            .execute()
-        )
-
-        if not subscription.data:
-            raise HTTPException(status_code=404, detail="No active subscription found")
-
-        current_subscription = subscription.data[0]
-        remaining = current_subscription["leads_included"] - current_subscription["leads_used"]
+        current_subscription = _load_current_subscription(supabase, customer_id)
+        remaining = max(current_subscription["leads_included"] - current_subscription["leads_used"], 0)
 
         return {
             "tier": current_subscription["tier"],
+            "status": current_subscription["status"],
             "leads_included": current_subscription["leads_included"],
             "leads_used": current_subscription["leads_used"],
             "leads_remaining": remaining,
             "overage_price": PRICING_TIERS[current_subscription["tier"]]["overage_price"],
+            "can_receive_leads": can_receive_leads(current_subscription["status"]),
+            "billing_message": billing_status_message(current_subscription["status"]),
         }
     except HTTPException:
         raise
     except Exception:
         logger.exception("Customer usage lookup failed for %s", customer_id)
         raise HTTPException(status_code=500, detail="Unable to load customer usage.")
+
+
+def get_customer_portal_summary(customer_id: str, email: str) -> dict:
+    supabase = _get_supabase()
+
+    try:
+        customer = _load_customer(customer_id)
+        if customer["email"].casefold() != email.casefold():
+            raise HTTPException(status_code=403, detail="Customer ID and email do not match.")
+
+        subscription = _load_current_subscription(supabase, customer_id)
+        purchases = supabase.table("lead_purchases").select("*").eq("customer_id", customer_id).execute()
+        recent_purchases = sorted(
+            purchases.data,
+            key=lambda purchase: purchase.get("purchased_at") or "",
+            reverse=True,
+        )[:10]
+
+        remaining = max(subscription["leads_included"] - subscription["leads_used"], 0)
+
+        return {
+            "customer": {
+                "id": customer["id"],
+                "company_name": customer["company_name"],
+                "email": customer["email"],
+                "phone": customer.get("phone"),
+            },
+            "subscription": {
+                "tier": subscription["tier"],
+                "status": subscription["status"],
+                "leads_included": subscription["leads_included"],
+                "leads_used": subscription["leads_used"],
+                "leads_remaining": remaining,
+                "overage_price": PRICING_TIERS[subscription["tier"]]["overage_price"],
+                "can_receive_leads": can_receive_leads(subscription["status"]),
+                "billing_message": billing_status_message(subscription["status"]),
+                "current_period_start": subscription.get("current_period_start"),
+                "current_period_end": subscription.get("current_period_end"),
+            },
+            "recent_purchases": recent_purchases,
+        }
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Customer portal lookup failed for %s", customer_id)
+        raise HTTPException(status_code=500, detail="Unable to load customer portal.")

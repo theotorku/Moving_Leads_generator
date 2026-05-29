@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 
 import stripe
 
@@ -31,6 +32,90 @@ PRICING_TIERS = {
         "overage_price": 8
     }
 }
+
+ASSIGNABLE_SUBSCRIPTION_STATUSES = {"active", "trialing"}
+SUBSCRIPTION_BILLING_MESSAGES = {
+    "active": "Subscription is active.",
+    "trialing": "Subscription is active during a trial period.",
+    "past_due": "Billing is past due. Update payment details before assigning more leads.",
+    "unpaid": "Billing is unpaid. Collect payment before assigning more leads.",
+    "incomplete": "Subscription setup is incomplete. Finish billing setup before assigning more leads.",
+    "paused": "Subscription is paused. Resume billing before assigning more leads.",
+    "canceled": "Subscription is canceled. Reactivate billing before assigning more leads.",
+}
+
+
+def _normalize_timestamp(value: int | None) -> str | None:
+    if value is None:
+        return None
+    return datetime.fromtimestamp(value, tz=timezone.utc).isoformat()
+
+
+def normalize_subscription_status(status: str | None) -> str:
+    normalized = (status or "").lower()
+    if normalized in SUBSCRIPTION_BILLING_MESSAGES:
+        return normalized
+    if normalized in {"incomplete_expired", "unpaid"}:
+        return "incomplete" if normalized == "incomplete_expired" else "unpaid"
+    if normalized in {"paused_collection", "paused"}:
+        return "paused"
+    return "past_due" if normalized else "past_due"
+
+
+def billing_status_message(status: str | None) -> str:
+    return SUBSCRIPTION_BILLING_MESSAGES[normalize_subscription_status(status)]
+
+
+def can_receive_leads(status: str | None) -> bool:
+    return normalize_subscription_status(status) in ASSIGNABLE_SUBSCRIPTION_STATUSES
+
+
+def sync_subscription_record(supabase, subscription_record: dict) -> dict:
+    normalized_status = normalize_subscription_status(subscription_record.get("status"))
+    synced_record = {**subscription_record, "status": normalized_status}
+    api_key = _stripe_api_key()
+
+    if not api_key or not subscription_record.get("stripe_subscription_id"):
+        return synced_record
+
+    try:
+        stripe_subscription = stripe.Subscription.retrieve(
+            subscription_record["stripe_subscription_id"],
+            api_key=api_key,
+        )
+    except stripe.error.StripeError:
+        logger.exception(
+            "Stripe subscription sync failed for %s",
+            subscription_record.get("stripe_subscription_id"),
+        )
+        return synced_record
+    except Exception:
+        logger.exception(
+            "Unexpected Stripe subscription sync error for %s",
+            subscription_record.get("stripe_subscription_id"),
+        )
+        return synced_record
+
+    refreshed_status = normalize_subscription_status(stripe_subscription.status)
+    refreshed_record = {
+        **synced_record,
+        "status": refreshed_status,
+        "current_period_start": _normalize_timestamp(getattr(stripe_subscription, "current_period_start", None)),
+        "current_period_end": _normalize_timestamp(getattr(stripe_subscription, "current_period_end", None)),
+    }
+
+    updates = {}
+    for field in ("status", "current_period_start", "current_period_end"):
+        if refreshed_record.get(field) != synced_record.get(field):
+            updates[field] = refreshed_record.get(field)
+
+    if updates and subscription_record.get("id"):
+        try:
+            supabase.table("subscriptions").update(updates).eq("id", subscription_record["id"]).execute()
+        except Exception:
+            logger.exception("Failed to persist synced subscription state for %s", subscription_record.get("id"))
+
+    return refreshed_record
 
 async def create_customer(email: str, company_name: str) -> dict:
     """Create a Stripe customer"""

@@ -10,6 +10,7 @@ from ..models import LeadStatus
 from ..services.admin_service import (
     assign_lead_to_customer,
     get_admin_analytics,
+    list_lead_assignment_options,
     list_customers_for_admin,
     list_leads_for_admin,
 )
@@ -53,6 +54,15 @@ async def assign_lead(
 ):
     """Assign a lead to a customer"""
     return assign_lead_to_customer(lead_id=lead_id, customer_id=customer_id)
+
+
+@router.get("/admin/leads/{lead_id}/assignment-options")
+async def get_assignment_options(
+    lead_id: str,
+    admin: str = Depends(verify_admin)
+):
+    """List the safest customer assignment options for a lead."""
+    return list_lead_assignment_options(lead_id=lead_id)
 
 @router.get("/admin/customers")
 async def list_customers(admin: str = Depends(verify_admin)):

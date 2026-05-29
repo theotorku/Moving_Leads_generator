@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 import logging
-from ..models import RawLead, ScoredLead
+from ..models import LeadStatus, RawLead, ScoredLead
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -18,10 +18,11 @@ async def score_lead(lead: RawLead):
     
     scored_lead_data = lead.model_dump(mode="json")
     scored_lead_data.update({"score": score, "reasoning": reasoning})
+    stored_lead_data = {**scored_lead_data, "status": LeadStatus.available.value}
     
     # Persist to Supabase
     try:
-        get_supabase_client().table("leads").insert(scored_lead_data).execute()
+        get_supabase_client().table("leads").insert(stored_lead_data).execute()
     except RuntimeError:
         logger.warning("Lead scored but not persisted because Supabase is not configured.")
     except Exception:

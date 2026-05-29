@@ -11,6 +11,7 @@ An AI-powered lead generation and monetization platform for the moving industry,
 
 ### Monetization System
 - **Hybrid Revenue Model** - Base subscription + pay-per-lead overage
+- **Subscription Health Sync** - Stripe subscription status is refreshed before key customer and assignment workflows
 - **Three Pricing Tiers:**
   - **Starter:** $299/mo - 30 leads included, $12/lead overage
   - **Professional:** $599/mo - 75 leads included, $10/lead overage
@@ -21,8 +22,12 @@ An AI-powered lead generation and monetization platform for the moving industry,
 ### Admin Dashboard
 - **Analytics Overview** - MRR, customer count, lead metrics
 - **Lead Management** - View, filter, and assign leads to customers
+- **Guided Assignment** - Rank customers by assignment readiness, remaining capacity, and billing health
 - **Customer Management** - Track subscriptions and usage
 - **Secure Authentication** - Basic HTTP auth for admin routes
+
+### Customer Experience
+- **Self-Serve Portal** - Customers can review subscription status, remaining allocation, and recent lead purchases
 
 ### Technical Stack
 - **Backend:** FastAPI (Python 3.11+)
@@ -127,6 +132,7 @@ Moving_Leads_generator/
    
    Visit `http://localhost:8000` for the lead form
    Visit `http://localhost:8000/admin` for the dashboard
+   Visit `http://localhost:8000/portal` for the customer portal
 
 ## 🐳 Docker Deployment
 
@@ -154,12 +160,14 @@ pytest
 
 ### Customer Endpoints
 - `POST /customers/register` - Register new customer with subscription
+- `GET /customers/portal/access` - Load a customer portal summary using customer ID + email
 - `GET /customers/{id}` - Get customer details
 - `GET /customers/{id}/usage` - Get lead usage statistics
 
 ### Admin Endpoints (requires authentication)
 - `GET /admin/analytics` - Revenue and usage metrics
 - `GET /admin/leads` - List all leads (with filters)
+- `GET /admin/leads/{id}/assignment-options` - Suggest the safest customer assignment targets for a lead
 - `POST /admin/leads/{id}/assign` - Assign lead to customer
 - `GET /admin/customers` - List all customers
 

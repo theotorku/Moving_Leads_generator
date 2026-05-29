@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Portal - Moving Leads AI</title>
+    <link rel="stylesheet" href="/static/customer.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <main class="portal-shell">
+        <section class="portal-card access-card">
+            <p class="eyebrow">Moving Leads AI</p>
+            <h1>Customer Portal</h1>
+            <p class="copy">Check subscription health, lead allocation, and your recent lead purchases.</p>
+
+            <form id="portal-form">
+                <label for="customer-id">Customer ID</label>
+                <input id="customer-id" name="customer-id" type="text" required>
+
+                <label for="customer-email">Billing email</label>
+                <input id="customer-email" name="customer-email" type="email" required>
+
+                <button type="submit">Open portal</button>
+            </form>
+
+            <p id="portal-status" class="portal-status" aria-live="polite"></p>
+        </section>
+
+        <section id="portal-results" class="portal-results hidden">
+            <div class="portal-card summary-card">
+                <div>
+                    <p class="eyebrow">Account summary</p>
+                    <h2 id="company-name">--</h2>
+                    <p id="subscription-message" class="copy"></p>
+                </div>
+                <div class="stat-grid">
+                    <article class="stat-card">
+                        <span class="stat-label">Plan</span>
+                        <strong id="plan-tier">--</strong>
+                    </article>
+                    <article class="stat-card">
+                        <span class="stat-label">Status</span>
+                        <strong id="plan-status">--</strong>
+                    </article>
+                    <article class="stat-card">
+                        <span class="stat-label">Included leads left</span>
+                        <strong id="leads-remaining">--</strong>
+                    </article>
+                    <article class="stat-card">
+                        <span class="stat-label">Overage price</span>
+                        <strong id="overage-price">--</strong>
+                    </article>
+                </div>
+            </div>
+
+            <section class="portal-card">
+                <h3>Recent lead purchases</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Lead ID</th>
+                            <th>Type</th>
+                            <th>Price</th>
+                            <th>Purchased</th>
+                        </tr>
+                    </thead>
+                    <tbody id="purchases-body">
+                        <tr>
+                            <td colspan="4">No purchases loaded.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+        </section>
+    </main>
+
+    <script>
+        const form = document.getElementById('portal-form');
+        const statusMessage = document.getElementById('portal-status');
+        const results = document.getElementById('portal-results');
+
+        function setStatus(message, tone = '') {
+            statusMessage.textContent = message;
+            statusMessage.className = message ? `portal-status ${tone}` : 'portal-status';
+        }
+
+        function formatCurrency(amount) {
+            return '$' + Number(amount || 0).toLocaleString();
+        }
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const customerId = document.getElementById('customer-id').value.trim();
+            const email = document.getElementById('customer-email').value.trim();
+            if (!customerId || !email) {
+                setStatus('Enter both your customer ID and billing email.', 'error');
+                return;
+            }
+
+            setStatus('Loading portal…');
+
+            try {
+                const url = `/customers/portal/access?customer_id=${encodeURIComponent(customerId)}&email=${encodeURIComponent(email)}`;
+                const response = await fetch(url);
+                const payload = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(payload.detail || 'Unable to load the portal.');
+                }
+
+                document.getElementById('company-name').textContent = payload.customer.company_name;
+                document.getElementById('subscription-message').textContent = payload.subscription.billing_message;
+                document.getElementById('plan-tier').textContent = payload.subscription.tier;
+                document.getElementById('plan-status').textContent = payload.subscription.status;
+                document.getElementById('leads-remaining').textContent = payload.subscription.leads_remaining;
+                document.getElementById('overage-price').textContent = formatCurrency(payload.subscription.overage_price);
+
+                const purchasesBody = document.getElementById('purchases-body');
+                if (!payload.recent_purchases.length) {
+                    purchasesBody.innerHTML = '<tr><td colspan="4">No lead purchases yet.</td></tr>';
+                } else {
+                    purchasesBody.innerHTML = payload.recent_purchases.map((purchase) => `
+                        <tr>
+                            <td>${purchase.lead_id}</td>
+                            <td>${purchase.purchase_type}</td>
+                            <td>${formatCurrency(purchase.price_paid)}</td>
+                            <td>${purchase.purchased_at || 'Pending'}</td>
+                        </tr>
+                    `).join('');
+                }
+
+                results.classList.remove('hidden');
+                setStatus('Portal loaded successfully.', 'success');
+            } catch (error) {
+                results.classList.add('hidden');
+                setStatus(error.message || 'Unable to load the portal.', 'error');
+            }
+        });
+    </script>
+</body>
+
+</html>

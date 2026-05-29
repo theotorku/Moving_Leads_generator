@@ -49,3 +49,8 @@ async def read_index():
 @app.get("/admin", response_class=FileResponse)
 async def read_admin():
     return FileResponse(FRONTEND_DIR / "admin.html")
+
+
+@app.get("/portal", response_class=FileResponse)
+async def read_customer_portal():
+    return FileResponse(FRONTEND_DIR / "customer.html")

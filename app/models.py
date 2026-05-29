@@ -31,8 +31,12 @@ class SubscriptionTier(str, Enum):
 
 class SubscriptionStatus(str, Enum):
     active = "active"
+    trialing = "trialing"
     canceled = "canceled"
     past_due = "past_due"
+    unpaid = "unpaid"
+    incomplete = "incomplete"
+    paused = "paused"
 
 
 class LeadStatus(str, Enum):
