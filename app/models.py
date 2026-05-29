@@ -37,6 +37,7 @@ class SubscriptionStatus(str, Enum):
     unpaid = "unpaid"
     incomplete = "incomplete"
     paused = "paused"
+    unknown = "unknown"
 
 
 class LeadStatus(str, Enum):

@@ -42,6 +42,7 @@ SUBSCRIPTION_BILLING_MESSAGES = {
     "incomplete": "Subscription setup is incomplete. Finish billing setup before assigning more leads.",
     "paused": "Subscription is paused. Resume billing before assigning more leads.",
     "canceled": "Subscription is canceled. Reactivate billing before assigning more leads.",
+    "unknown": "Subscription status could not be verified. Confirm billing before assigning more leads.",
 }
 
 
@@ -59,7 +60,7 @@ def normalize_subscription_status(status: str | None) -> str:
         return "incomplete" if normalized == "incomplete_expired" else "unpaid"
     if normalized in {"paused_collection", "paused"}:
         return "paused"
-    return "past_due" if normalized else "past_due"
+    return "unknown"
 
 
 def billing_status_message(status: str | None) -> str:
