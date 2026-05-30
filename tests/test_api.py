@@ -140,6 +140,7 @@ def test_score_lead_endpoint_persists_scored_lead():
     assert response.status_code == 200
     data = response.json()
     assert data["score"] == 90
+    assert data["persisted"] is True
     assert data["reasoning"] == "Mocked AI"
     assert data["booking_probability"] == 92
     assert data["route_type"] == "interstate"
@@ -150,6 +151,35 @@ def test_score_lead_endpoint_persists_scored_lead():
     assert inserted_payload["status"] == "available"
     assert inserted_payload["estimated_job_value"] == 5200
     assert inserted_payload["recommended_followup"] == "Call within 10 minutes and confirm inventory."
+
+
+def test_score_lead_surfaces_persistence_failure():
+    # A configured insert that errors (e.g. schema drift) must fail loudly (503)
+    # instead of masquerading as a successful score.
+    payload = {
+        "full_name": "John Doe",
+        "email": "john@example.com",
+        "phone": "+1 (555) 123-4567",
+        "move_date": "2026-10-01",
+        "origin_zip": "10001",
+        "destination_zip": "90210",
+        "home_size": "2_bedroom",
+        "budget": 5000,
+        "urgency": "this_month",
+    }
+
+    mock_supabase = MagicMock()
+    mock_supabase.table.return_value.insert.return_value.execute.side_effect = FakeAPIError(
+        "column \"booking_probability\" does not exist"
+    )
+
+    with (
+        patch("app.routes.leads.analyze_lead", AsyncMock(return_value={"score": 90, "reasoning": "Mocked AI"})),
+        patch("app.routes.leads.get_supabase_client", return_value=mock_supabase),
+    ):
+        response = client.post("/leads/score", json=payload)
+
+    assert response.status_code == 503
 
 
 def test_register_customer_rejects_invalid_tier():

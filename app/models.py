@@ -159,3 +159,12 @@ class CustomerRegistration(BaseModel):
     @classmethod
     def registration_phone_must_include_digits(cls, value: Optional[str]) -> Optional[str]:
         return _require_phone_digits(value)
+
+
+class ScoreResponse(ScoredLead):
+    """Response for POST /leads/score: the scored lead plus persistence status."""
+
+    model_config = ConfigDict(use_enum_values=True)
+
+    persisted: bool = True
+    persistence_warning: Optional[str] = None
