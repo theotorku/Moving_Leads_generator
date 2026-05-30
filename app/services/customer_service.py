@@ -8,8 +8,10 @@ from .stripe_service import (
     PRICING_TIERS,
     billing_status_message,
     can_receive_leads,
+    cancel_subscription,
     create_customer,
     create_subscription,
+    delete_customer,
     sync_subscription_record,
 )
 
@@ -49,12 +51,34 @@ def _load_current_subscription(supabase, customer_id: str) -> dict:
     return sync_subscription_record(supabase, _pick_current_subscription(subscriptions.data))
 
 
+async def _rollback_registration(
+    supabase,
+    customer_id: str | None,
+    stripe_subscription_id: str | None,
+    stripe_customer_id: str | None,
+) -> None:
+    """Undo partial registration so we never leave Stripe and the DB out of sync."""
+    if stripe_subscription_id:
+        await cancel_subscription(stripe_subscription_id)
+    if customer_id:
+        try:
+            # FK cascade also removes any subscription row written before failure.
+            supabase.table("customers").delete().eq("id", customer_id).execute()
+        except Exception:
+            logger.exception("Failed to remove orphaned customer row %s during cleanup", customer_id)
+    if stripe_customer_id:
+        await delete_customer(stripe_customer_id)
+
+
 async def register_customer_with_subscription(registration: CustomerRegistration) -> dict:
     stripe_result = await create_customer(registration.email, registration.company_name)
     if not stripe_result["success"]:
         raise HTTPException(status_code=502, detail=stripe_result["error"])
 
+    stripe_customer_id = stripe_result["stripe_customer_id"]
     supabase = _get_supabase()
+    customer_id: str | None = None
+    stripe_subscription_id: str | None = None
 
     try:
         customer_response = supabase.table("customers").insert(
@@ -62,17 +86,15 @@ async def register_customer_with_subscription(registration: CustomerRegistration
                 "company_name": registration.company_name,
                 "email": registration.email,
                 "phone": registration.phone,
-                "stripe_customer_id": stripe_result["stripe_customer_id"],
+                "stripe_customer_id": stripe_customer_id,
             }
         ).execute()
         customer_id = customer_response.data[0]["id"]
 
-        subscription_result = await create_subscription(
-            stripe_result["stripe_customer_id"],
-            registration.tier,
-        )
+        subscription_result = await create_subscription(stripe_customer_id, registration.tier)
         if not subscription_result["success"]:
             raise HTTPException(status_code=502, detail=subscription_result["error"])
+        stripe_subscription_id = subscription_result["subscription_id"]
 
         supabase.table("subscriptions").insert(
             {
@@ -81,7 +103,7 @@ async def register_customer_with_subscription(registration: CustomerRegistration
                 "status": subscription_result["status"],
                 "leads_included": PRICING_TIERS[registration.tier]["leads_included"],
                 "leads_used": 0,
-                "stripe_subscription_id": subscription_result["subscription_id"],
+                "stripe_subscription_id": stripe_subscription_id,
             }
         ).execute()
 
@@ -90,9 +112,10 @@ async def register_customer_with_subscription(registration: CustomerRegistration
             "customer_id": customer_id,
             "message": f"Successfully registered with {registration.tier} plan",
         }
-    except HTTPException:
-        raise
-    except Exception:
+    except Exception as exc:
+        await _rollback_registration(supabase, customer_id, stripe_subscription_id, stripe_customer_id)
+        if isinstance(exc, HTTPException):
+            raise
         logger.exception("Customer registration failed")
         raise HTTPException(status_code=500, detail="Registration failed. Please try again.")
 

@@ -6,18 +6,12 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 from ..db import get_supabase_client
-from ..ai.scorer import analyze_lead
+from ..ai.scorer import analyze_lead, normalize_lead_intelligence
 
 @router.post("/leads/score", response_model=ScoredLead)
 async def score_lead(lead: RawLead):
-    # Use AI to score the lead
     ai_result = await analyze_lead(lead)
-    
-    score = ai_result.get("score", 0)
-    reasoning = ai_result.get("reasoning", "No reasoning provided.")
-    
-    scored_lead_data = lead.model_dump(mode="json")
-    scored_lead_data.update({"score": score, "reasoning": reasoning})
+    scored_lead_data = normalize_lead_intelligence(lead, ai_result)
     stored_lead_data = {**scored_lead_data, "status": LeadStatus.available.value}
     
     # Persist to Supabase

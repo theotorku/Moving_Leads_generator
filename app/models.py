@@ -50,6 +50,25 @@ class PurchaseType(str, Enum):
     overage = "overage"
 
 
+class RouteType(str, Enum):
+    local = "local"
+    intrastate = "intrastate"
+    interstate = "interstate"
+    unknown = "unknown"
+
+
+class RiskLevel(str, Enum):
+    low = "low"
+    medium = "medium"
+    high = "high"
+
+
+class MoveComplexity(str, Enum):
+    low = "low"
+    medium = "medium"
+    high = "high"
+
+
 def _require_phone_digits(value: Optional[str]) -> Optional[str]:
     if value and not any(character.isdigit() for character in value):
         raise ValueError("Phone number must include at least one digit.")
@@ -74,8 +93,19 @@ class RawLead(BaseModel):
         return _require_phone_digits(value)
 
 class ScoredLead(RawLead):
+    model_config = ConfigDict(use_enum_values=True)
+
     score: int
     reasoning: str
+    booking_probability: Annotated[int, Field(ge=0, le=100)] = 50
+    estimated_job_value: Annotated[int, Field(ge=0, le=100000)] = 0
+    route_type: RouteType = RouteType.unknown
+    move_complexity: MoveComplexity = MoveComplexity.medium
+    fraud_risk: RiskLevel = RiskLevel.medium
+    missing_info: list[str] = Field(default_factory=list)
+    recommended_followup: str = "Call the lead to confirm move details and availability."
+    confidence: Annotated[int, Field(ge=0, le=100)] = 50
+    best_customer_fit_reason: str = "Match with a customer that has active billing and available lead capacity."
 
 class Customer(BaseModel):
     model_config = ConfigDict(use_enum_values=True)

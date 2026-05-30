@@ -5,7 +5,7 @@ An AI-powered lead generation and monetization platform for the moving industry,
 ## 🚀 Features
 
 ### Lead Generation & AI Scoring
-- **AI-Powered Lead Scoring** - OpenAI analyzes lead quality (0-100 score)
+- **Structured Lead Intelligence** - OpenAI returns score, booking probability, job value, route type, complexity, fraud risk, confidence, and follow-up guidance
 - **Smart Lead Capture** - Modern, responsive form with real-time validation
 - **Automated Reasoning** - AI provides detailed scoring rationale
 
@@ -22,7 +22,7 @@ An AI-powered lead generation and monetization platform for the moving industry,
 ### Admin Dashboard
 - **Analytics Overview** - MRR, customer count, lead metrics
 - **Lead Management** - View, filter, and assign leads to customers
-- **Guided Assignment** - Rank customers by assignment readiness, remaining capacity, and billing health
+- **AI-Guided Assignment** - Rank customers by lead intelligence, assignment readiness, remaining capacity, and billing health
 - **Customer Management** - Track subscriptions and usage
 - **Secure Authentication** - Basic HTTP auth for admin routes
 
@@ -124,6 +124,11 @@ Moving_Leads_generator/
    - `customers`
    - `subscriptions`
    - `lead_purchases`
+
+   The `leads` table should include the base lead fields plus AI intelligence columns:
+   `score`, `reasoning`, `booking_probability`, `estimated_job_value`, `route_type`,
+   `move_complexity`, `fraud_risk`, `missing_info`, `recommended_followup`,
+   `confidence`, `best_customer_fit_reason`, `status`, and `assigned_to`.
 
 6. **Run the application:**
    ```bash

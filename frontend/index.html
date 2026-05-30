@@ -103,7 +103,7 @@
 
           <div class="form-group">
             <label for="budget">Estimated Budget</label>
-            <input id="budget" type="number" name="budget" min="1" max="50000" step="100" inputmode="numeric"
+            <input id="budget" type="number" name="budget" min="100" max="50000" step="100" inputmode="numeric"
               aria-describedby="budgetHelp" required>
             <p id="budgetHelp" class="help-text">Use the customer’s estimated move budget in USD.</p>
           </div>
@@ -134,6 +134,25 @@
         </div>
         <div class="score-circle" id="scoreValue">--</div>
         <p class="reasoning" id="reasoningText"></p>
+        <div class="intelligence-grid" aria-label="Lead intelligence details">
+          <article>
+            <span>Booking probability</span>
+            <strong id="bookingProbability">--</strong>
+          </article>
+          <article>
+            <span>Estimated value</span>
+            <strong id="estimatedValue">--</strong>
+          </article>
+          <article>
+            <span>Route</span>
+            <strong id="routeType">--</strong>
+          </article>
+          <article>
+            <span>Risk</span>
+            <strong id="fraudRisk">--</strong>
+          </article>
+        </div>
+        <p class="followup" id="followupText"></p>
         <button type="button" id="resetBtn" class="secondary-button">Analyze another lead</button>
       </div>
     </section>
@@ -146,6 +165,11 @@
     const submitBtn = document.getElementById('submitBtn');
     const scoreValue = document.getElementById('scoreValue');
     const reasoningText = document.getElementById('reasoningText');
+    const bookingProbability = document.getElementById('bookingProbability');
+    const estimatedValue = document.getElementById('estimatedValue');
+    const routeType = document.getElementById('routeType');
+    const fraudRisk = document.getElementById('fraudRisk');
+    const followupText = document.getElementById('followupText');
     const statusMessage = document.getElementById('statusMessage');
     const resetBtn = document.getElementById('resetBtn');
     const LOW_SCORE_THRESHOLD = 50;
@@ -179,6 +203,11 @@
       form.classList.remove('hidden');
       scoreValue.textContent = '--';
       reasoningText.textContent = '';
+      bookingProbability.textContent = '--';
+      estimatedValue.textContent = '--';
+      routeType.textContent = '--';
+      fraudRisk.textContent = '--';
+      followupText.textContent = '';
       setStatus('');
     }
 
@@ -221,6 +250,11 @@
         resultCard.classList.remove('hidden');
         scoreValue.textContent = data.score;
         reasoningText.textContent = data.reasoning;
+        bookingProbability.textContent = Number(data.booking_probability || 0) + '%';
+        estimatedValue.textContent = '$' + Number(data.estimated_job_value || 0).toLocaleString();
+        routeType.textContent = data.route_type || 'unknown';
+        fraudRisk.textContent = data.fraud_risk || 'unknown';
+        followupText.textContent = data.recommended_followup || '';
         setScoreTone(data.score);
         setStatus('Lead analyzed successfully.', 'success');
       } catch (err) {

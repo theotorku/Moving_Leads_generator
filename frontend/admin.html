@@ -189,6 +189,10 @@
             return '$' + Number(amount || 0).toLocaleString();
         }
 
+        function formatPercent(value) {
+            return Number(value || 0) + '%';
+        }
+
         function closeAssignmentPanel() {
             activeAssignmentLeadId = null;
             assignmentSummary.textContent = '';
@@ -208,6 +212,17 @@
                 adminAuthHeader = '';
                 showLogin();
                 throw new Error('Invalid admin credentials. Refresh and try again.');
+            }
+
+            if (!response.ok) {
+                let message = `Request failed with status ${response.status}.`;
+                try {
+                    const payload = await response.clone().json();
+                    message = payload.detail || message;
+                } catch {
+                    // Keep the generic status message when the response is not JSON.
+                }
+                throw new Error(message);
             }
 
             return response;
@@ -247,6 +262,7 @@
             } catch (err) {
                 console.error('Failed to load analytics:', err);
                 showAuthError(err.message || 'Failed to load analytics.');
+                throw err;
             }
         }
 
@@ -325,11 +341,27 @@
                 const res = await fetchAdmin(`/admin/leads/${leadId}/assignment-options`);
                 const data = await res.json();
 
-                assignmentSummary.textContent = `${data.lead.full_name} • score ${data.lead.score} • ${data.lead.status}`;
+                assignmentSummary.innerHTML = `
+                    <strong>${escapeHtml(data.lead.full_name)}</strong>
+                    <span>Score ${data.lead.score}</span>
+                    <span>${formatPercent(data.lead.booking_probability)} booking probability</span>
+                    <span>${formatCurrency(data.lead.estimated_job_value)} est. value</span>
+                    <span>${escapeHtml(data.lead.route_type)} route</span>
+                    <span>${escapeHtml(data.lead.move_complexity)} complexity</span>
+                    <span>${escapeHtml(data.lead.fraud_risk)} risk</span>
+                `;
                 if (!data.recommendations.length) {
                     assignmentOptions.innerHTML = '<p class="empty-state">No subscribed customers are ready for assignment yet.</p>';
                     return;
                 }
+
+                const intelligenceNote = `
+                    <article class="assignment-intelligence">
+                        <p class="section-kicker">AI routing note</p>
+                        <p>${escapeHtml(data.lead.best_customer_fit_reason)}</p>
+                        <p><strong>Follow-up:</strong> ${escapeHtml(data.lead.recommended_followup)}</p>
+                    </article>
+                `;
 
                 assignmentOptions.innerHTML = data.recommendations.map((candidate, index) => `
                     <article class="assignment-card ${candidate.can_assign ? 'assignment-ready' : 'assignment-blocked'}">
@@ -338,12 +370,15 @@
                                 <h4>${escapeHtml(candidate.company_name)}</h4>
                                 <p>${escapeHtml(candidate.subscription_tier)} plan • ${escapeHtml(candidate.subscription_status)}</p>
                             </div>
-                            ${index === 0 && candidate.can_assign ? '<span class="recommendation-pill">Best fit</span>' : ''}
+                            <div class="assignment-score-group">
+                                ${index === 0 && candidate.can_assign ? '<span class="recommendation-pill">Best fit</span>' : ''}
+                                <span class="priority-score">${candidate.priority_score}</span>
+                            </div>
                         </div>
                         <p class="assignment-meta">
                             ${candidate.leads_remaining} included leads remaining • ${candidate.purchase_type === 'overage' ? `Overage ${formatCurrency(candidate.projected_price)}` : 'Included allocation'}
                         </p>
-                        <p class="assignment-reason">${escapeHtml(candidate.billing_message)}</p>
+                        <p class="assignment-reason">${escapeHtml(candidate.fit_reason || candidate.billing_message)}</p>
                         <button
                             type="button"
                             ${candidate.can_assign ? '' : 'disabled'}
@@ -352,7 +387,7 @@
                             ${candidate.can_assign ? 'Assign lead' : 'Billing action required'}
                         </button>
                     </article>
-                `).join('');
+                `).join('') + intelligenceNote;
             } catch (err) {
                 assignmentSummary.textContent = err.message || 'Unable to load assignment options.';
             }

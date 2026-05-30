@@ -1,23 +1,56 @@
+# Render Blueprint for Moving Leads AI Backend
+# Auto-deploy: Push to main branch to trigger deployment
+# Documentation: https://render.com/docs/blueprint-spec
+
 services:
   - type: web
     name: moving-leads-ai
-    env: python
+    runtime: python
+    region: oregon # Choose: oregon, frankfurt, singapore, ohio, etc.
+    plan: free # Upgrade to 'starter' ($7/mo) for production
+    branch: main
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2
+    healthCheckPath: /
+
+    # Environment Variables
+    # Note: Values with 'sync: false' must be set in Render Dashboard
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
+
+      # Supabase Configuration
       - key: SUPABASE_URL
-        sync: false
+        value: https://vycmndrlixxefvlfkdxg.supabase.co
+
       - key: SUPABASE_KEY
-        sync: false
+        sync: false # Set in Render Dashboard for security
+
+      # OpenAI Configuration
       - key: OPENAI_API_KEY
-        sync: false
-      - key: STRIPE_SECRET_KEY
-        sync: false
-      - key: STRIPE_PUBLISHABLE_KEY
-        sync: false
+        sync: false # Set in Render Dashboard for security
+
+      # Admin Authentication (IMPORTANT: Change password in production!)
       - key: ADMIN_USERNAME
         value: admin
+
       - key: ADMIN_PASSWORD
-        sync: false
+        sync: false # Set in Render Dashboard - use strong password!
+
+      # CORS Configuration
+      # After deploying frontend, update this with your Vercel URL
+      - key: CORS_ALLOW_ORIGINS
+        value: http://localhost:5173,http://localhost:3000
+
+      # Stripe Configuration (Optional - for payment processing)
+      - key: STRIPE_SECRET_KEY
+        sync: false # Set in Render Dashboard if using Stripe
+
+    # Auto-deploy on push to main branch
+    autoDeploy: true
+
+    # Scaling (available on paid plans)
+    # scaling:
+    #   minInstances: 1
+    #   maxInstances: 3
+    #   targetMemoryPercent: 80

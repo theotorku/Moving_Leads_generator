@@ -51,6 +51,25 @@ class FakeSupabase:
         return self.tables[name]
 
 
+class FakeAPIError(Exception):
+    """Mimics a PostgREST/supabase-py error raised by an RPC call."""
+
+    def __init__(self, message, code=None):
+        super().__init__(message)
+        self.message = message
+        self.code = code
+
+
+def _rpc_supabase(*, raises=None, returns=None):
+    """A mock supabase client whose .rpc(...).execute() raises or returns data."""
+    mock = MagicMock()
+    if raises is not None:
+        mock.rpc.return_value.execute.side_effect = raises
+    else:
+        mock.rpc.return_value.execute.return_value = SimpleNamespace(data=returns)
+    return mock
+
+
 @pytest.fixture(autouse=True)
 def clear_cached_clients():
     get_settings.cache_clear()
@@ -96,7 +115,24 @@ def test_score_lead_endpoint_persists_scored_lead():
     mock_supabase.table.return_value.insert.return_value.execute.return_value = SimpleNamespace(data=[])
 
     with (
-        patch("app.routes.leads.analyze_lead", AsyncMock(return_value={"score": 90, "reasoning": "Mocked AI"})),
+        patch(
+            "app.routes.leads.analyze_lead",
+            AsyncMock(
+                return_value={
+                    "score": 90,
+                    "reasoning": "Mocked AI",
+                    "booking_probability": 92,
+                    "estimated_job_value": 5200,
+                    "route_type": "interstate",
+                    "move_complexity": "high",
+                    "fraud_risk": "low",
+                    "missing_info": ["inventory list"],
+                    "recommended_followup": "Call within 10 minutes and confirm inventory.",
+                    "confidence": 88,
+                    "best_customer_fit_reason": "Best for higher-tier movers with interstate capacity.",
+                }
+            ),
+        ),
         patch("app.routes.leads.get_supabase_client", return_value=mock_supabase),
     ):
         response = client.post("/leads/score", json=payload)
@@ -105,10 +141,15 @@ def test_score_lead_endpoint_persists_scored_lead():
     data = response.json()
     assert data["score"] == 90
     assert data["reasoning"] == "Mocked AI"
+    assert data["booking_probability"] == 92
+    assert data["route_type"] == "interstate"
+    assert data["fraud_risk"] == "low"
     inserted_payload = mock_supabase.table.return_value.insert.call_args.args[0]
     assert inserted_payload["move_date"] == "2026-10-01"
     assert inserted_payload["budget"] == 5000
     assert inserted_payload["status"] == "available"
+    assert inserted_payload["estimated_job_value"] == 5200
+    assert inserted_payload["recommended_followup"] == "Call within 10 minutes and confirm inventory."
 
 
 def test_register_customer_rejects_invalid_tier():
@@ -139,17 +180,8 @@ def test_get_customer_not_found_returns_404():
 
 
 def test_assign_lead_preserves_404_for_missing_subscription():
-    mock_supabase = MagicMock()
-    lead_query = MagicMock()
-    lead_query.eq.return_value.execute.return_value = SimpleNamespace(
-        data=[{"id": "lead-123", "status": "available"}]
-    )
-    subscription_query = MagicMock()
-    subscription_query.eq.return_value.execute.return_value = SimpleNamespace(data=[])
-    mock_supabase.table.side_effect = [
-        MagicMock(select=MagicMock(return_value=lead_query)),
-        MagicMock(select=MagicMock(return_value=subscription_query)),
-    ]
+    # The assign RPC raises 'no_subscription'; the service must map it to 404.
+    mock_supabase = _rpc_supabase(raises=FakeAPIError("no_subscription"))
 
     with patch("app.services.admin_service.get_supabase_client", return_value=mock_supabase):
         response = client.post(
@@ -163,14 +195,10 @@ def test_assign_lead_preserves_404_for_missing_subscription():
 
 
 def test_assign_lead_rejects_sold_lead():
-    fake_supabase = FakeSupabase(
-        {
-            "leads": FakeTable([{"id": "lead-123", "status": "sold"}]),
-            "subscriptions": FakeTable([]),
-        }
-    )
+    # The assign RPC raises 'lead_already_assigned' for an already-sold lead.
+    mock_supabase = _rpc_supabase(raises=FakeAPIError("lead_already_assigned"))
 
-    with patch("app.services.admin_service.get_supabase_client", return_value=fake_supabase):
+    with patch("app.services.admin_service.get_supabase_client", return_value=mock_supabase):
         response = client.post(
             "/admin/leads/lead-123/assign",
             params={"customer_id": "customer-123"},
@@ -179,6 +207,49 @@ def test_assign_lead_rejects_sold_lead():
 
     assert response.status_code == 409
     assert response.json() == {"detail": "Lead has already been assigned."}
+
+
+def test_assign_lead_double_sell_backstop_maps_to_409():
+    # The unique(lead_id) constraint surfaces as SQLSTATE 23505 -> 409.
+    mock_supabase = _rpc_supabase(raises=FakeAPIError("duplicate key value", code="23505"))
+
+    with patch("app.services.admin_service.get_supabase_client", return_value=mock_supabase):
+        response = client.post(
+            "/admin/leads/lead-123/assign",
+            params={"customer_id": "customer-123"},
+            headers=auth_headers(),
+        )
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Lead has already been assigned."}
+
+
+def test_assign_lead_included_returns_success():
+    mock_supabase = _rpc_supabase(
+        returns={
+            "success": True,
+            "purchase_type": "included",
+            "price": 0,
+            "payment_status": "recorded",
+            "lead_status": "sold",
+            "message": "Lead assigned to customer",
+            "purchase_id": "purchase-1",
+        }
+    )
+
+    with patch("app.services.admin_service.get_supabase_client", return_value=mock_supabase):
+        response = client.post(
+            "/admin/leads/lead-123/assign",
+            params={"customer_id": "customer-123"},
+            headers=auth_headers(),
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["purchase_type"] == "included"
+    assert body["lead_status"] == "sold"
+    # Included assignment must not attempt a Stripe charge.
+    mock_supabase.rpc.assert_called_once()
 
 
 def test_assignment_options_rank_assignable_customers_first():
@@ -228,6 +299,73 @@ def test_assignment_options_rank_assignable_customers_first():
     assert payload["recommendations"][0]["can_assign"] is True
     assert payload["recommendations"][1]["customer_id"] == "customer-2"
     assert payload["recommendations"][1]["can_assign"] is False
+
+
+def test_assignment_options_use_lead_intelligence_for_priority():
+    fake_supabase = FakeSupabase(
+        {
+            "leads": FakeTable(
+                [
+                    {
+                        "id": "lead-456",
+                        "full_name": "Jane Smith",
+                        "score": 91,
+                        "status": "available",
+                        "booking_probability": 94,
+                        "estimated_job_value": 12000,
+                        "route_type": "interstate",
+                        "move_complexity": "high",
+                        "fraud_risk": "low",
+                        "confidence": 90,
+                        "recommended_followup": "Confirm interstate availability and packing scope.",
+                        "best_customer_fit_reason": "High-value interstate lead should go to an advanced buyer.",
+                    }
+                ]
+            ),
+            "customers": FakeTable(
+                [
+                    {
+                        "id": "starter-customer",
+                        "company_name": "Starter Local Movers",
+                        "subscriptions": [
+                            {
+                                "id": "sub-starter",
+                                "tier": "starter",
+                                "status": "active",
+                                "leads_included": 30,
+                                "leads_used": 1,
+                            }
+                        ],
+                    },
+                    {
+                        "id": "enterprise-customer",
+                        "company_name": "Enterprise Van Lines",
+                        "subscriptions": [
+                            {
+                                "id": "sub-enterprise",
+                                "tier": "enterprise",
+                                "status": "active",
+                                "leads_included": 150,
+                                "leads_used": 145,
+                            }
+                        ],
+                    },
+                ]
+            ),
+            "subscriptions": FakeTable([]),
+        }
+    )
+
+    with patch("app.services.admin_service.get_supabase_client", return_value=fake_supabase):
+        response = client.get("/admin/leads/lead-456/assignment-options", headers=auth_headers())
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["lead"]["booking_probability"] == 94
+    assert payload["lead"]["recommended_followup"] == "Confirm interstate availability and packing scope."
+    assert payload["recommendations"][0]["customer_id"] == "enterprise-customer"
+    assert payload["recommendations"][0]["priority_score"] > payload["recommendations"][1]["priority_score"]
+    assert "interstate route" in payload["recommendations"][0]["fit_reason"]
 
 
 def test_list_leads_validates_min_score_range():
@@ -322,3 +460,92 @@ def test_customer_portal_page_is_served():
 
     assert response.status_code == 200
     assert "Customer Portal" in response.text
+
+
+# --- Stripe webhook reconciliation ------------------------------------------
+
+import stripe  # noqa: E402
+
+from app.services import webhook_service  # noqa: E402
+
+
+class _FakeWebhookSettings:
+    def __init__(self, secret="whsec_test"):
+        self.stripe_webhook_secret = (
+            SimpleNamespace(get_secret_value=lambda: secret) if secret else None
+        )
+
+
+class RaisingInsertTable(FakeTable):
+    def execute(self):
+        raise FakeAPIError("duplicate key value violates unique constraint", code="23505")
+
+
+def _fake_event(event_id, event_type, obj):
+    return {"id": event_id, "type": event_type, "data": {"object": obj}}
+
+
+def test_webhook_rejects_invalid_signature():
+    with patch.object(webhook_service, "get_settings", return_value=_FakeWebhookSettings()), patch.object(
+        stripe.Webhook,
+        "construct_event",
+        side_effect=stripe.error.SignatureVerificationError("bad sig", "sig-header"),
+    ):
+        response = client.post("/stripe/webhook", content=b"{}", headers={"stripe-signature": "bad"})
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Invalid webhook signature."}
+
+
+def test_webhook_requires_configured_secret():
+    with patch.object(webhook_service, "get_settings", return_value=_FakeWebhookSettings(secret=None)):
+        response = client.post("/stripe/webhook", content=b"{}", headers={"stripe-signature": "x"})
+
+    assert response.status_code == 503
+
+
+def test_webhook_is_idempotent_on_duplicate_event():
+    event = _fake_event("evt_dup", "payment_intent.succeeded", {"id": "pi_1", "object": "payment_intent"})
+    fake_supabase = FakeSupabase({"stripe_events": RaisingInsertTable([])})
+
+    with patch.object(webhook_service, "get_settings", return_value=_FakeWebhookSettings()), patch.object(
+        stripe.Webhook, "construct_event", return_value=event
+    ), patch.object(webhook_service, "get_supabase_client", return_value=fake_supabase):
+        response = client.post("/stripe/webhook", content=b"{}", headers={"stripe-signature": "ok"})
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "duplicate", "event_id": "evt_dup"}
+
+
+def test_webhook_updates_subscription_status():
+    event = _fake_event(
+        "evt_sub",
+        "customer.subscription.updated",
+        {"id": "sub_1", "status": "past_due", "current_period_start": None, "current_period_end": None},
+    )
+    subscriptions = FakeTable([])
+    fake_supabase = FakeSupabase({"stripe_events": FakeTable([]), "subscriptions": subscriptions})
+
+    with patch.object(webhook_service, "get_settings", return_value=_FakeWebhookSettings()), patch.object(
+        stripe.Webhook, "construct_event", return_value=event
+    ), patch.object(webhook_service, "get_supabase_client", return_value=fake_supabase):
+        response = client.post("/stripe/webhook", content=b"{}", headers={"stripe-signature": "ok"})
+
+    assert response.status_code == 200
+    assert response.json()["handled"] == "subscription:past_due"
+    assert {"status": "past_due", "current_period_start": None, "current_period_end": None} in subscriptions.update_calls
+
+
+def test_webhook_links_payment_intent_to_purchase():
+    event = _fake_event("evt_pi", "payment_intent.succeeded", {"id": "pi_42", "object": "payment_intent"})
+    purchases = FakeTable([])
+    fake_supabase = FakeSupabase({"stripe_events": FakeTable([]), "lead_purchases": purchases})
+
+    with patch.object(webhook_service, "get_settings", return_value=_FakeWebhookSettings()), patch.object(
+        stripe.Webhook, "construct_event", return_value=event
+    ), patch.object(webhook_service, "get_supabase_client", return_value=fake_supabase):
+        response = client.post("/stripe/webhook", content=b"{}", headers={"stripe-signature": "ok"})
+
+    assert response.status_code == 200
+    assert response.json()["handled"] == "payment_intent:paid"
+    assert {"payment_status": "paid"} in purchases.update_calls

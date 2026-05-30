@@ -9,3 +9,7 @@ venv/
 .vscode/
 test_customer.json
 test_system.py
+
+# Generated artifacts (browser/test output)
+output/
+.playwright-mcp/

@@ -53,7 +53,7 @@ async def assign_lead(
     admin: str = Depends(verify_admin)
 ):
     """Assign a lead to a customer"""
-    return assign_lead_to_customer(lead_id=lead_id, customer_id=customer_id)
+    return await assign_lead_to_customer(lead_id=lead_id, customer_id=customer_id)
 
 
 @router.get("/admin/leads/{lead_id}/assignment-options")

@@ -74,6 +74,13 @@ def can_receive_leads(status: str | None) -> bool:
 def sync_subscription_record(supabase, subscription_record: dict) -> dict:
     normalized_status = normalize_subscription_status(subscription_record.get("status"))
     synced_record = {**subscription_record, "status": normalized_status}
+
+    # When webhooks own reconciliation, the DB row is already kept fresh — skip
+    # the per-read Stripe API call that otherwise causes N+1 latency on the
+    # admin customer list / assignment-options endpoints.
+    if get_settings().reconcile_via_webhook:
+        return synced_record
+
     api_key = _stripe_api_key()
 
     if not api_key or not subscription_record.get("stripe_subscription_id"):
@@ -118,7 +125,7 @@ def sync_subscription_record(supabase, subscription_record: dict) -> dict:
 
     return refreshed_record
 
-async def create_customer(email: str, company_name: str) -> dict:
+async def create_customer(email: str, company_name: str, idempotency_key: str | None = None) -> dict:
     """Create a Stripe customer"""
     try:
         api_key = _stripe_api_key()
@@ -130,6 +137,7 @@ async def create_customer(email: str, company_name: str) -> dict:
             email=email,
             name=company_name,
             api_key=api_key,
+            idempotency_key=idempotency_key or f"customer:{email.casefold()}",
         )
         return {"stripe_customer_id": customer.id, "success": True}
     except stripe.error.StripeError:
@@ -139,11 +147,11 @@ async def create_customer(email: str, company_name: str) -> dict:
         logger.exception("Unexpected Stripe customer creation error")
         return {"success": False, "error": "Unexpected payment provider error."}
 
-async def create_subscription(customer_id: str, tier: str) -> dict:
+async def create_subscription(customer_id: str, tier: str, idempotency_key: str | None = None) -> dict:
     """Create a Stripe subscription for a customer"""
     if tier not in PRICING_TIERS:
         return {"success": False, "error": "Invalid tier"}
-    
+
     try:
         api_key = _stripe_api_key()
         if not api_key:
@@ -169,6 +177,7 @@ async def create_subscription(customer_id: str, tier: str) -> dict:
                 "leads_included": PRICING_TIERS[tier]["leads_included"]
             },
             api_key=api_key,
+            idempotency_key=idempotency_key or f"subscription:{customer_id}:{tier}",
         )
         return {
             "success": True,
@@ -182,13 +191,15 @@ async def create_subscription(customer_id: str, tier: str) -> dict:
         logger.exception("Unexpected Stripe subscription creation error")
         return {"success": False, "error": "Unexpected payment provider error."}
 
-async def charge_overage(customer_id: str, num_leads: int, tier: str) -> dict:
+async def charge_overage(
+    customer_id: str, num_leads: int, tier: str, idempotency_key: str | None = None
+) -> dict:
     """Charge for overage leads"""
     if tier not in PRICING_TIERS:
         return {"success": False, "error": "Invalid tier"}
-    
+
     amount = num_leads * PRICING_TIERS[tier]["overage_price"]
-    
+
     try:
         api_key = _stripe_api_key()
         if not api_key:
@@ -202,6 +213,7 @@ async def charge_overage(customer_id: str, num_leads: int, tier: str) -> dict:
             description=f"Overage charge for {num_leads} leads",
             metadata={"type": "overage", "num_leads": num_leads},
             api_key=api_key,
+            idempotency_key=idempotency_key,
         )
         return {"success": True, "charge_id": charge.id, "amount": amount}
     except stripe.error.StripeError:
@@ -210,3 +222,25 @@ async def charge_overage(customer_id: str, num_leads: int, tier: str) -> dict:
     except Exception:
         logger.exception("Unexpected Stripe overage charge error")
         return {"success": False, "error": "Unexpected payment provider error."}
+
+
+async def cancel_subscription(subscription_id: str | None) -> None:
+    """Best-effort cancellation to compensate for a failed registration."""
+    api_key = _stripe_api_key()
+    if not api_key or not subscription_id:
+        return
+    try:
+        stripe.Subscription.cancel(subscription_id, api_key=api_key)
+    except Exception:
+        logger.exception("Failed to cancel Stripe subscription %s during cleanup", subscription_id)
+
+
+async def delete_customer(stripe_customer_id: str | None) -> None:
+    """Best-effort deletion to compensate for a failed registration."""
+    api_key = _stripe_api_key()
+    if not api_key or not stripe_customer_id:
+        return
+    try:
+        stripe.Customer.delete(stripe_customer_id, api_key=api_key)
+    except Exception:
+        logger.exception("Failed to delete Stripe customer %s during cleanup", stripe_customer_id)
