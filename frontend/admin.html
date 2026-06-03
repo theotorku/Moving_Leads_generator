@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Command Center — Moving Leads AI</title>
-    <link rel="stylesheet" href="/static/admin.css?v=2">
+    <link rel="stylesheet" href="/static/admin.css?v=4">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -111,7 +111,10 @@
 
             <!-- Customers view -->
             <section id="customers-view" class="view">
-                <div class="col-head"><h2>Customers</h2></div>
+                <div class="col-head">
+                    <h2>Customers</h2>
+                    <button class="btn-primary btn-sm" id="add-customer-btn">+ Register customer</button>
+                </div>
                 <div class="table-wrap">
                     <table class="data-grid">
                         <thead>
@@ -131,6 +134,35 @@
                 </div>
             </section>
         </main>
+
+        <!-- Register customer modal -->
+        <div class="modal-overlay hidden" id="customer-modal">
+            <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cust-modal-title">
+                <div class="modal-head">
+                    <h3 id="cust-modal-title">Register customer</h3>
+                    <button type="button" class="modal-close" id="cust-close" aria-label="Close">✕</button>
+                </div>
+                <form id="customer-form" class="modal-form">
+                    <label for="cust-company">Company name</label>
+                    <input id="cust-company" type="text" minlength="2" required>
+                    <label for="cust-email">Email</label>
+                    <input id="cust-email" type="email" required>
+                    <label for="cust-phone">Phone <span class="opt">(optional)</span></label>
+                    <input id="cust-phone" type="tel" inputmode="tel">
+                    <label for="cust-tier">Plan</label>
+                    <select id="cust-tier" required>
+                        <option value="starter">Starter — $299/mo · 30 leads</option>
+                        <option value="professional">Professional — $599/mo · 75 leads</option>
+                        <option value="enterprise">Enterprise — $999/mo · 150 leads</option>
+                    </select>
+                    <p id="cust-error" class="modal-error hidden" aria-live="polite"></p>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-ghost" id="cust-cancel">Cancel</button>
+                        <button type="submit" class="btn-primary" id="cust-submit">Register</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -212,7 +244,8 @@
             const tbody = document.getElementById('customers-tbody');
             if (!data.customers || !data.customers.length) {
                 tbody.innerHTML = `<tr><td colspan="6" class="grid-empty">
-                    <strong>No customers yet.</strong> Register a customer before assigning leads.</td></tr>`;
+                    <strong>No customers yet.</strong> Register a customer before assigning leads.
+                    <div class="empty-action"><button class="btn-primary btn-sm" onclick="openCustomerModal()">+ Register customer</button></div></td></tr>`;
                 return;
             }
             tbody.innerHTML = data.customers.map(c => {
@@ -403,6 +436,60 @@
                 adminAuthHeader = '';
                 showLogin();
                 showAuthError(err.message || 'Unable to authenticate.');
+            }
+        });
+
+        /* ---- register customer ---- */
+        const custModal = document.getElementById('customer-modal');
+        const custForm = document.getElementById('customer-form');
+        const custError = document.getElementById('cust-error');
+        const custSubmit = document.getElementById('cust-submit');
+
+        function openCustomerModal() {
+            custForm.reset();
+            custError.classList.add('hidden');
+            custModal.classList.remove('hidden');
+            document.getElementById('cust-company').focus();
+        }
+        function closeCustomerModal() { custModal.classList.add('hidden'); }
+
+        document.getElementById('add-customer-btn').addEventListener('click', openCustomerModal);
+        document.getElementById('cust-close').addEventListener('click', closeCustomerModal);
+        document.getElementById('cust-cancel').addEventListener('click', closeCustomerModal);
+        custModal.addEventListener('click', (e) => { if (e.target === custModal) closeCustomerModal(); });
+
+        custForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            custError.classList.add('hidden');
+            const payload = {
+                company_name: document.getElementById('cust-company').value.trim(),
+                email: document.getElementById('cust-email').value.trim(),
+                tier: document.getElementById('cust-tier').value,
+            };
+            const phone = document.getElementById('cust-phone').value.trim();
+            if (phone) payload.phone = phone;  // optional; omit when blank
+
+            custSubmit.disabled = true;
+            custSubmit.textContent = 'Registering…';
+            try {
+                const res = await fetch('/customers/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const body = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    throw new Error(typeof body.detail === 'string' ? body.detail
+                        : 'Could not register customer.');
+                }
+                closeCustomerModal();
+                await loadDashboard();
+            } catch (err) {
+                custError.textContent = err.message || 'Could not register customer.';
+                custError.classList.remove('hidden');
+            } finally {
+                custSubmit.disabled = false;
+                custSubmit.textContent = 'Register';
             }
         });
 

@@ -182,8 +182,42 @@ main { flex: 1; padding: 18px 20px; max-width: 1500px; width: 100%; margin: 0 au
 .assign-success-title { font-weight: 700; color: var(--success); margin: 0 0 6px; }
 .assign-success p { margin: 0 0 4px; font-size: 13px; }
 
+/* ---- general primary button ---- */
+.btn-primary { padding: 8px 14px; border: none; border-radius: var(--radius-sm); background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+.btn-primary:hover { background: var(--accent-strong); }
+.btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+.empty-action { margin-top: 12px; }
+.opt { color: var(--muted); font-weight: 400; }
+
+/* ---- modal ---- */
+.modal-overlay { position: fixed; inset: 0; background: rgba(16, 24, 40, .45); display: grid; place-items: center; padding: 16px; z-index: 50; }
+.modal { width: 100%; max-width: 420px; background: var(--surface); border-radius: var(--radius); box-shadow: 0 12px 40px rgba(16, 24, 40, .25); overflow: hidden; }
+.modal-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.modal-head h3 { margin: 0; font-size: 16px; }
+.modal-close { border: none; background: none; font-size: 15px; color: var(--muted); cursor: pointer; line-height: 1; }
+.modal-close:hover { color: var(--text); }
+.modal-form { padding: 16px; display: flex; flex-direction: column; }
+.modal-form label { font-size: 12.5px; font-weight: 600; margin-bottom: 6px; }
+.modal-form input, .modal-form select { padding: 9px 11px; margin-bottom: 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); font: inherit; font-size: 14px; }
+.modal-form input:focus, .modal-form select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47, 109, 246, .15); }
+.modal-error { margin: 0 0 12px; padding: 9px 11px; border-radius: var(--radius-sm); background: var(--danger-bg); color: var(--danger); font-size: 13px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ---- responsive ---- */
 @media (max-width: 1040px) {
   .command-grid { grid-template-columns: 1fr; }
   .assign-col { position: static; }
-  .metrics { display: none; }
+}
+@media (max-width: 680px) {
+  .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
+  .topnav { margin-left: auto; }
+  .metrics { order: 3; flex: 0 0 100%; margin-left: 0; }
+  main { padding: 12px; }
+  .col-head { flex-wrap: wrap; gap: 8px; }
+  .filters { flex-wrap: wrap; }
+  /* keep all lead data legible via horizontal scroll instead of crushing columns */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .data-grid { min-width: 720px; }
+  .btn-assign { padding: 13px; }
+  .modal { max-width: none; }
 }
