@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from .config import get_settings
@@ -37,6 +37,25 @@ app.include_router(leads.router)
 app.include_router(customers.router)
 app.include_router(admin_routes.router)
 app.include_router(webhooks.router)
+
+# Brand favicon, served inline so every page stops 404ing /favicon.ico (the lone
+# console error seen across all three pages). Matches the "ML" topbar mark.
+_FAVICON = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
+    '<rect width="32" height="32" rx="7" fill="#2f6df6"/>'
+    '<text x="16" y="21" font-family="Inter,Segoe UI,sans-serif" font-size="13" '
+    'font-weight="700" fill="#fff" text-anchor="middle">ML</text></svg>'
+).encode()
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return Response(
+        content=_FAVICON,
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
 
 # Serve static files
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
