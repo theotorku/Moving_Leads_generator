@@ -4,50 +4,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Moving Leads AI | Score moving leads instantly</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <title>Moving Leads AI | Score a lead</title>
+  <link rel="stylesheet" href="/static/style.css?v=2">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 
 <body>
-  <main class="page-shell">
-    <section class="hero panel">
-      <div class="eyebrow">Moving Leads AI</div>
-      <h1>AI-powered lead scoring for moving companies that need faster follow-up.</h1>
-      <p class="hero-copy">
-        Capture a lead, score intent in seconds, and hand your sales team the context they need to prioritize
-        high-value moves first.
-      </p>
-      <div class="hero-pills" aria-label="Key product benefits">
-        <span class="pill">Instant qualification</span>
-        <span class="pill">Built for movers</span>
-        <span class="pill">FastAPI-powered</span>
-      </div>
-      <div class="hero-grid" aria-label="Why teams use Moving Leads AI">
-        <article class="hero-card">
-          <h2>Prioritize better</h2>
-          <p>Spot urgent, high-budget, and high-fit opportunities before your team wastes time on cold leads.</p>
-        </article>
-        <article class="hero-card">
-          <h2>Respond faster</h2>
-          <p>Give reps a score and reasoning instantly so callbacks happen while purchase intent is still high.</p>
-        </article>
-        <article class="hero-card">
-          <h2>Keep the workflow simple</h2>
-          <p>One form in, one score out, with the same submit-and-analyze flow your team already understands.</p>
-        </article>
-      </div>
-    </section>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">ML</span>
+      <span class="brand-name">Moving Leads <strong>AI</strong></span>
+    </div>
+    <nav class="topbar-links">
+      <a href="/admin">Admin</a>
+      <a href="/portal">Customer portal</a>
+    </nav>
+  </header>
 
-    <section class="form-panel panel" aria-labelledby="lead-form-title">
-      <div class="section-heading">
-        <p class="eyebrow">Analyze a lead</p>
-        <h2 id="lead-form-title">Qualify a move request in under a minute</h2>
-        <p class="section-copy">
-          Use structured inputs for cleaner data, clearer scores, and better downstream routing.
-        </p>
+  <main class="page">
+    <section class="lead-panel">
+      <div class="panel-head">
+        <h1>Score a moving lead</h1>
+        <p>Enter the move details — get an instant quality score, booking probability, and follow-up guidance.</p>
       </div>
 
       <div id="statusMessage" class="status-banner" aria-live="polite"></div>
@@ -55,44 +35,42 @@
       <form id="leadForm" novalidate>
         <div class="form-grid">
           <div class="form-group">
-            <label for="full_name">Full Name</label>
+            <label for="full_name">Full name</label>
             <input id="full_name" type="text" name="full_name" autocomplete="name" required>
           </div>
 
           <div class="form-group">
-            <label for="email">Email Address</label>
+            <label for="email">Email address</label>
             <input id="email" type="email" name="email" autocomplete="email" required>
           </div>
 
           <div class="form-group">
-            <label for="phone">Phone Number</label>
+            <label for="phone">Phone number</label>
             <input id="phone" type="tel" name="phone" autocomplete="tel" inputmode="tel"
               aria-describedby="phoneHelp" required>
-            <p id="phoneHelp" class="help-text">Digits, spaces, plus signs, and dashes are accepted.</p>
           </div>
 
           <div class="form-group">
-            <label for="move_date">Move Date</label>
+            <label for="move_date">Move date</label>
             <input id="move_date" type="date" name="move_date" required>
           </div>
 
           <div class="form-group">
-            <label for="origin_zip">Origin ZIP code</label>
+            <label for="origin_zip">Origin ZIP</label>
             <input id="origin_zip" type="text" name="origin_zip" inputmode="numeric" pattern="[0-9]{5}"
-              maxlength="5" aria-describedby="zipHelp" required>
+              maxlength="5" placeholder="5-digit" required>
           </div>
 
           <div class="form-group">
-            <label for="destination_zip">Destination ZIP code</label>
+            <label for="destination_zip">Destination ZIP</label>
             <input id="destination_zip" type="text" name="destination_zip" inputmode="numeric" pattern="[0-9]{5}"
-              maxlength="5" aria-describedby="zipHelp" required>
-            <p id="zipHelp" class="help-text">Enter 5-digit U.S. ZIP codes for more reliable scoring.</p>
+              maxlength="5" placeholder="5-digit" required>
           </div>
 
           <div class="form-group">
-            <label for="home_size">Home Size</label>
+            <label for="home_size">Home size</label>
             <select id="home_size" name="home_size" required>
-              <option value="">Select a home size</option>
+              <option value="">Select…</option>
               <option value="studio">Studio</option>
               <option value="1_bedroom">1 bedroom</option>
               <option value="2_bedroom">2 bedroom</option>
@@ -102,18 +80,17 @@
           </div>
 
           <div class="form-group">
-            <label for="budget">Estimated Budget</label>
+            <label for="budget">Estimated budget (USD)</label>
             <input id="budget" type="number" name="budget" min="100" max="50000" step="100" inputmode="numeric"
-              aria-describedby="budgetHelp" required>
-            <p id="budgetHelp" class="help-text">Use the customer’s estimated move budget in USD.</p>
+              required>
           </div>
 
           <div class="form-group form-group-full">
             <label for="urgency">Urgency</label>
             <select id="urgency" name="urgency" required>
-              <option value="">Select urgency</option>
-              <option value="same_week">Move is happening this week</option>
-              <option value="this_month">Move is happening this month</option>
+              <option value="">Select…</option>
+              <option value="same_week">Moving this week</option>
+              <option value="this_month">Moving this month</option>
               <option value="planning_ahead">Still planning ahead</option>
             </select>
           </div>
@@ -124,38 +101,38 @@
 
       <div id="loader" class="loader hidden" aria-live="polite">
         <div class="spinner" aria-hidden="true"></div>
-        <p>Analyzing lead quality and intent…</p>
+        <p>Scoring lead…</p>
       </div>
 
       <div id="result" class="result-card hidden" aria-live="polite">
-        <div class="result-header">
-          <p class="eyebrow">Lead score</p>
-          <h2>Prioritize your next follow-up</h2>
+        <div class="result-top">
+          <div class="score-circle" id="scoreValue">--</div>
+          <div class="result-head">
+            <p class="kicker">Lead score</p>
+            <p class="reasoning" id="reasoningText"></p>
+          </div>
         </div>
-        <div class="score-circle" id="scoreValue">--</div>
-        <p class="reasoning" id="reasoningText"></p>
-        <div class="intelligence-grid" aria-label="Lead intelligence details">
-          <article>
-            <span>Booking probability</span>
-            <strong id="bookingProbability">--</strong>
-          </article>
-          <article>
-            <span>Estimated value</span>
-            <strong id="estimatedValue">--</strong>
-          </article>
-          <article>
-            <span>Route</span>
-            <strong id="routeType">--</strong>
-          </article>
-          <article>
-            <span>Risk</span>
-            <strong id="fraudRisk">--</strong>
-          </article>
+        <div class="intelligence-grid" aria-label="Lead intelligence">
+          <article><span>Booking probability</span><strong id="bookingProbability">--</strong></article>
+          <article><span>Estimated value</span><strong id="estimatedValue">--</strong></article>
+          <article><span>Route</span><strong id="routeType">--</strong></article>
+          <article><span>Risk</span><strong id="fraudRisk">--</strong></article>
         </div>
         <p class="followup" id="followupText"></p>
         <button type="button" id="resetBtn" class="secondary-button">Analyze another lead</button>
       </div>
+
+      <p id="phoneHelp" class="help-text">Digits, spaces, plus signs, and dashes are accepted. ZIPs should be 5 digits.</p>
     </section>
+
+    <aside class="why">
+      <h2>Why operators use it</h2>
+      <ul>
+        <li><strong>Prioritize.</strong> Surface urgent, high-budget, high-fit moves first.</li>
+        <li><strong>Respond faster.</strong> Score + reasoning instantly, while intent is hot.</li>
+        <li><strong>Stay simple.</strong> One form in, one score out.</li>
+      </ul>
+    </aside>
   </main>
 
   <script>
@@ -257,7 +234,8 @@
         fraudRisk.textContent = data.fraud_risk || 'unknown';
         followupText.textContent = data.recommended_followup || '';
         setScoreTone(data.score);
-        setStatus('Lead analyzed successfully.', 'success');
+        const savedNote = data.persisted === false ? ' (not saved — database not configured)' : '';
+        setStatus('Lead analyzed successfully.' + savedNote, data.persisted === false ? 'warn' : 'success');
       } catch (err) {
         console.error(err);
         setStatus(err.message || 'Something went wrong. Please try again.', 'error');

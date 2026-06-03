@@ -4,424 +4,399 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - Moving Leads AI</title>
-    <link rel="stylesheet" href="/static/admin.css">
+    <title>Command Center — Moving Leads AI</title>
+    <link rel="stylesheet" href="/static/admin.css?v=2">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 
 <body>
+    <!-- Login -->
     <section id="auth-panel" class="auth-panel">
         <form id="auth-form" class="auth-card">
             <p class="auth-eyebrow">Moving Leads AI</p>
-            <h1>Unlock the admin dashboard</h1>
-            <p class="auth-copy">Sign in with your configured admin credentials to load analytics, leads, and customers.</p>
-
+            <h1>Command Center</h1>
+            <p class="auth-copy">Sign in with your admin credentials to manage lead inventory and assignments.</p>
             <label for="admin-username">Username</label>
             <input id="admin-username" type="text" autocomplete="username" required>
-
             <label for="admin-password">Password</label>
             <input id="admin-password" type="password" autocomplete="current-password" required>
-
             <p id="auth-error" class="auth-error hidden" aria-live="polite"></p>
-            <button type="submit">Access dashboard</button>
+            <button type="submit">Access console</button>
         </form>
     </section>
 
-    <div class="dashboard hidden" id="dashboard">
-        <aside class="sidebar">
-            <h1>Moving Leads AI</h1>
-            <nav>
-                <button class="nav-btn active" data-view="analytics">📊 Analytics</button>
-                <button class="nav-btn" data-view="leads">📋 Leads</button>
-                <button class="nav-btn" data-view="customers">👥 Customers</button>
+    <!-- Console -->
+    <div class="app hidden" id="dashboard">
+        <header class="topbar">
+            <div class="brand">
+                <span class="brand-mark">ML</span>
+                <span class="brand-name">Command Center</span>
+            </div>
+
+            <div class="metrics" id="metrics">
+                <div class="metric"><span id="m-leads">--</span><label>Leads</label></div>
+                <div class="metric"><span id="m-available">--</span><label>Available</label></div>
+                <div class="metric"><span id="m-sold">--</span><label>Sold</label></div>
+                <div class="metric"><span id="m-customers">--</span><label>Customers</label></div>
+                <div class="metric"><span id="m-mrr">$--</span><label>MRR</label></div>
+                <div class="metric"><span id="m-overage">$--</span><label>Overage</label></div>
+            </div>
+
+            <nav class="topnav">
+                <button class="nav-btn active" data-view="command" title="Command">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z"/></svg>
+                    Command
+                </button>
+                <button class="nav-btn" data-view="customers" title="Customers">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    Customers
+                </button>
+                <button class="nav-btn ghost" id="refresh-btn" title="Refresh">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                </button>
             </nav>
-        </aside>
+        </header>
 
-        <main class="content">
-            <!-- Analytics View -->
-            <div id="analytics-view" class="view active">
-                <h2>Analytics Overview</h2>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-value" id="total-customers">--</div>
-                        <div class="stat-label">Total Customers</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="active-subs">--</div>
-                        <div class="stat-label">Active Subscriptions</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="mrr">$--</div>
-                        <div class="stat-label">Monthly Recurring Revenue</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="total-revenue">$--</div>
-                        <div class="stat-label">Total Revenue</div>
-                    </div>
-                </div>
-
-                <div class="stats-grid section-spacing">
-                    <div class="stat-card">
-                        <div class="stat-value" id="total-leads">--</div>
-                        <div class="stat-label">Total Leads</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="available-leads">--</div>
-                        <div class="stat-label">Available Leads</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="sold-leads">--</div>
-                        <div class="stat-label">Sold Leads</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="overage-revenue">$--</div>
-                        <div class="stat-label">Overage Revenue</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Leads View -->
-            <div id="leads-view" class="view">
-                <h2>Lead Management</h2>
-                <div class="filters">
-                    <select id="status-filter">
-                        <option value="">All Statuses</option>
-                        <option value="available">Available</option>
-                        <option value="sold">Sold</option>
-                    </select>
-                    <input type="number" id="min-score" placeholder="Min Score" min="0" max="100">
-                    <button onclick="loadLeads()">Filter</button>
-                </div>
-                <section id="assignment-panel" class="assignment-panel hidden" aria-live="polite">
-                    <div class="assignment-panel-header">
-                        <div>
-                            <p class="section-kicker">Guided assignment</p>
-                            <h3 id="assignment-title">Choose the best customer for this lead</h3>
+        <main>
+            <!-- Command view -->
+            <section id="command-view" class="view active">
+                <div class="command-grid">
+                    <div class="leads-col">
+                        <div class="col-head">
+                            <h2>Lead inventory</h2>
+                            <div class="filters">
+                                <select id="status-filter">
+                                    <option value="">All statuses</option>
+                                    <option value="available">Available</option>
+                                    <option value="sold">Sold</option>
+                                </select>
+                                <input type="number" id="min-score" placeholder="Min score" min="0" max="100">
+                                <button id="filter-btn" class="btn-ghost">Apply</button>
+                            </div>
                         </div>
-                        <button type="button" class="secondary-btn" onclick="closeAssignmentPanel()">Close</button>
+                        <div class="table-wrap">
+                            <table class="data-grid">
+                                <thead>
+                                    <tr>
+                                        <th>Lead</th>
+                                        <th>Score</th>
+                                        <th>Booking</th>
+                                        <th>Value</th>
+                                        <th>Route</th>
+                                        <th>Risk</th>
+                                        <th>Status</th>
+                                        <th>Assigned</th>
+                                        <th>Created</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="leads-tbody">
+                                    <tr><td colspan="9" class="grid-loading">Loading…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                    <p id="assignment-summary" class="assignment-summary"></p>
-                    <div id="assignment-options" class="assignment-options"></div>
-                </section>
-                <table id="leads-table">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Move Date</th>
-                            <th>Score</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="leads-tbody">
-                        <tr>
-                            <td colspan="6">Loading...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
 
-            <!-- Customers View -->
-            <div id="customers-view" class="view">
-                <h2>Customer Management</h2>
-                <table id="customers-table">
-                    <thead>
-                        <tr>
-                            <th>Company</th>
-                            <th>Email</th>
-                            <th>Tier</th>
-                            <th>Leads Used</th>
-                            <th>Status</th>
-                            <th>Billing</th>
-                        </tr>
-                    </thead>
-                    <tbody id="customers-tbody">
-                        <tr>
-                            <td colspan="6">Loading...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+                    <aside class="assign-col">
+                        <div id="assignment-panel" class="assign-panel">
+                            <div class="assign-empty">
+                                <p class="assign-empty-title">Select a lead</p>
+                                <p>Pick a lead from the inventory to see the best buyer, expected revenue, and why.</p>
+                            </div>
+                        </div>
+                    </aside>
+                </div>
+            </section>
+
+            <!-- Customers view -->
+            <section id="customers-view" class="view">
+                <div class="col-head"><h2>Customers</h2></div>
+                <div class="table-wrap">
+                    <table class="data-grid">
+                        <thead>
+                            <tr>
+                                <th>Company</th>
+                                <th>Email</th>
+                                <th>Tier</th>
+                                <th>Usage</th>
+                                <th>Status</th>
+                                <th>Billing</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customers-tbody">
+                            <tr><td colspan="6" class="grid-loading">Loading…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </main>
     </div>
 
     <script>
-        const API_BASE = '';
-        let currentCustomers = [];
         let adminAuthHeader = '';
-        let activeAssignmentLeadId = null;
+        let currentLeads = [];
+        let customerNameById = {};
+        let selectedLeadId = null;
+
         const authPanel = document.getElementById('auth-panel');
         const authForm = document.getElementById('auth-form');
         const authError = document.getElementById('auth-error');
         const dashboard = document.getElementById('dashboard');
-        const assignmentPanel = document.getElementById('assignment-panel');
-        const assignmentSummary = document.getElementById('assignment-summary');
-        const assignmentOptions = document.getElementById('assignment-options');
+        const panel = document.getElementById('assignment-panel');
+        const HIGH_VALUE = 7000;
 
-        function showAuthError(message) {
-            authError.textContent = message;
-            authError.classList.toggle('hidden', !message);
+        const esc = (v) => String(v ?? '')
+            .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+        const money = (a) => '$' + Number(a || 0).toLocaleString();
+        const pct = (v) => Number(v || 0) + '%';
+
+        function scoreClass(s) { return s >= 80 ? 'high' : s >= 60 ? 'med' : 'low'; }
+        function riskClass(r) { return r === 'high' ? 'high' : r === 'medium' ? 'med' : 'low'; }
+        function fmtDate(v) {
+            if (!v) return '—';
+            const d = new Date(v);
+            return isNaN(d) ? '—' : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
         }
 
-        function showDashboard() {
-            authPanel.classList.add('hidden');
-            dashboard.classList.remove('hidden');
-        }
-
-        function showLogin() {
-            dashboard.classList.add('hidden');
-            authPanel.classList.remove('hidden');
-        }
-
-        function escapeHtml(value) {
-            return String(value ?? '')
-                .replaceAll('&', '&amp;')
-                .replaceAll('<', '&lt;')
-                .replaceAll('>', '&gt;')
-                .replaceAll('"', '&quot;')
-                .replaceAll("'", '&#39;');
-        }
-
-        function formatCurrency(amount) {
-            return '$' + Number(amount || 0).toLocaleString();
-        }
-
-        function formatPercent(value) {
-            return Number(value || 0) + '%';
-        }
-
-        function closeAssignmentPanel() {
-            activeAssignmentLeadId = null;
-            assignmentSummary.textContent = '';
-            assignmentOptions.innerHTML = '';
-            assignmentPanel.classList.add('hidden');
-        }
+        function showAuthError(m) { authError.textContent = m; authError.classList.toggle('hidden', !m); }
+        function showDashboard() { authPanel.classList.add('hidden'); dashboard.classList.remove('hidden'); }
+        function showLogin() { dashboard.classList.add('hidden'); authPanel.classList.remove('hidden'); }
 
         async function fetchAdmin(url, options = {}) {
-            if (!adminAuthHeader) {
-                throw new Error('Admin credentials are required to load the dashboard.');
-            }
-
+            if (!adminAuthHeader) throw new Error('Admin credentials are required.');
             const headers = { ...(options.headers || {}), 'Authorization': adminAuthHeader };
             const response = await fetch(url, { ...options, headers });
-
-            if (response.status === 401) {
-                adminAuthHeader = '';
-                showLogin();
-                throw new Error('Invalid admin credentials. Refresh and try again.');
-            }
-
+            if (response.status === 401) { adminAuthHeader = ''; showLogin(); throw new Error('Invalid admin credentials.'); }
             if (!response.ok) {
-                let message = `Request failed with status ${response.status}.`;
-                try {
-                    const payload = await response.clone().json();
-                    message = payload.detail || message;
-                } catch {
-                    // Keep the generic status message when the response is not JSON.
-                }
+                let message = `Request failed (${response.status}).`;
+                try { message = (await response.clone().json()).detail || message; } catch {}
                 throw new Error(message);
             }
-
             return response;
         }
 
-        // Navigation
-        document.querySelectorAll('.nav-btn').forEach(btn => {
+        /* ---- navigation ---- */
+        document.querySelectorAll('.nav-btn[data-view]').forEach(btn => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.nav-btn[data-view]').forEach(b => b.classList.remove('active'));
                 document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-
                 btn.classList.add('active');
-                const view = btn.dataset.view;
-                document.getElementById(`${view}-view`).classList.add('active');
-
-                // Load data for the view
-                if (view === 'analytics') loadAnalytics();
-                if (view === 'leads') loadLeads();
-                if (view === 'customers') loadCustomers();
+                document.getElementById(`${btn.dataset.view}-view`).classList.add('active');
             });
         });
+        document.getElementById('refresh-btn').addEventListener('click', loadDashboard);
+        document.getElementById('filter-btn').addEventListener('click', loadLeads);
 
-        // Load analytics
-        async function loadAnalytics() {
-            try {
-                const res = await fetchAdmin('/admin/analytics');
-                const data = await res.json();
-
-                document.getElementById('total-customers').textContent = data.total_customers;
-                document.getElementById('active-subs').textContent = data.active_subscriptions;
-                document.getElementById('mrr').textContent = '$' + data.monthly_recurring_revenue.toLocaleString();
-                document.getElementById('total-revenue').textContent = '$' + data.total_revenue.toLocaleString();
-                document.getElementById('total-leads').textContent = data.total_leads;
-                document.getElementById('available-leads').textContent = data.available_leads;
-                document.getElementById('sold-leads').textContent = data.sold_leads;
-                document.getElementById('overage-revenue').textContent = '$' + data.overage_revenue.toLocaleString();
-            } catch (err) {
-                console.error('Failed to load analytics:', err);
-                showAuthError(err.message || 'Failed to load analytics.');
-                throw err;
-            }
+        /* ---- data loads ---- */
+        async function loadDashboard() {
+            await Promise.all([loadAnalytics(), loadCustomers().then(loadLeads)]);
         }
 
-        // Load leads
-        async function loadLeads() {
-            const status = document.getElementById('status-filter')?.value || '';
-            const minScore = document.getElementById('min-score')?.value || '';
+        async function loadAnalytics() {
+            const data = await (await fetchAdmin('/admin/analytics')).json();
+            document.getElementById('m-leads').textContent = data.total_leads;
+            document.getElementById('m-available').textContent = data.available_leads;
+            document.getElementById('m-sold').textContent = data.sold_leads;
+            document.getElementById('m-customers').textContent = data.total_customers;
+            document.getElementById('m-mrr').textContent = money(data.monthly_recurring_revenue);
+            document.getElementById('m-overage').textContent = money(data.overage_revenue);
+        }
 
+        async function loadCustomers() {
+            const data = await (await fetchAdmin('/admin/customers')).json();
+            customerNameById = {};
+            (data.customers || []).forEach(c => { customerNameById[c.id] = c.company_name; });
+
+            const tbody = document.getElementById('customers-tbody');
+            if (!data.customers || !data.customers.length) {
+                tbody.innerHTML = `<tr><td colspan="6" class="grid-empty">
+                    <strong>No customers yet.</strong> Register a customer before assigning leads.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = data.customers.map(c => {
+                const sub = c.subscriptions?.[0] || {};
+                const blocked = c.assignment_ready === false;
+                return `<tr>
+                    <td class="cell-strong">${esc(c.company_name)}</td>
+                    <td class="cell-muted">${esc(c.email)}</td>
+                    <td>${esc(sub.tier || '—')}</td>
+                    <td>${(sub.leads_used ?? 0)} / ${(sub.leads_included ?? 0)}</td>
+                    <td>${statusBadge(sub.status)}${blocked ? ' <span class="badge badge-blocked">Billing blocked</span>' : ''}</td>
+                    <td class="cell-muted">${esc(c.billing_message || '—')}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function loadLeads() {
+            const status = document.getElementById('status-filter').value;
+            const minScore = document.getElementById('min-score').value;
             let url = '/admin/leads?';
             if (status) url += `status=${status}&`;
             if (minScore) url += `min_score=${minScore}`;
 
+            const tbody = document.getElementById('leads-tbody');
             try {
-                const res = await fetchAdmin(url);
-                const data = await res.json();
-
-                const tbody = document.getElementById('leads-tbody');
-                tbody.innerHTML = data.leads.map(lead => `
-          <tr>
-            <td>${lead.full_name}</td>
-            <td>${lead.email}</td>
-            <td>${lead.move_date}</td>
-            <td><span class="score-badge score-${getScoreClass(lead.score)}">${lead.score}</span></td>
-            <td><span class="status-pill status-${lead.status || 'available'}">${lead.status || 'available'}</span></td>
-            <td>
-              ${lead.status !== 'sold' ? `<button onclick="openAssignmentPanel('${lead.id}')">Assign</button>` : 'Sold'}
-            </td>
-          </tr>
-        `).join('');
-            } catch (err) {
-                console.error('Failed to load leads:', err);
-                showAuthError(err.message || 'Failed to load leads.');
-            }
-        }
-
-        // Load customers
-        async function loadCustomers() {
-            try {
-                const res = await fetchAdmin('/admin/customers');
-                const data = await res.json();
-                currentCustomers = data.customers;
-
-                const tbody = document.getElementById('customers-tbody');
-                tbody.innerHTML = data.customers.map(customer => {
-                    const sub = customer.subscriptions?.[0] || {};
-                    return `
-            <tr>
-              <td>${customer.company_name}</td>
-              <td>${customer.email}</td>
-              <td>${sub.tier || 'N/A'}</td>
-              <td>${sub.leads_used || 0} / ${sub.leads_included || 0}</td>
-              <td><span class="status-pill status-${sub.status || 'unknown'}">${sub.status || 'N/A'}</span></td>
-              <td class="customer-note">${customer.billing_message || 'No billing details available.'}</td>
-            </tr>
-          `;
-                }).join('');
-            } catch (err) {
-                console.error('Failed to load customers:', err);
-                showAuthError(err.message || 'Failed to load customers.');
-            }
-        }
-
-        function getScoreClass(score) {
-            if (score >= 80) return 'high';
-            if (score >= 60) return 'medium';
-            return 'low';
-        }
-
-        async function openAssignmentPanel(leadId) {
-            activeAssignmentLeadId = leadId;
-            assignmentPanel.classList.remove('hidden');
-            assignmentSummary.textContent = 'Loading customer recommendations…';
-            assignmentOptions.innerHTML = '';
-
-            try {
-                const res = await fetchAdmin(`/admin/leads/${leadId}/assignment-options`);
-                const data = await res.json();
-
-                assignmentSummary.innerHTML = `
-                    <strong>${escapeHtml(data.lead.full_name)}</strong>
-                    <span>Score ${data.lead.score}</span>
-                    <span>${formatPercent(data.lead.booking_probability)} booking probability</span>
-                    <span>${formatCurrency(data.lead.estimated_job_value)} est. value</span>
-                    <span>${escapeHtml(data.lead.route_type)} route</span>
-                    <span>${escapeHtml(data.lead.move_complexity)} complexity</span>
-                    <span>${escapeHtml(data.lead.fraud_risk)} risk</span>
-                `;
-                if (!data.recommendations.length) {
-                    assignmentOptions.innerHTML = '<p class="empty-state">No subscribed customers are ready for assignment yet.</p>';
+                const data = await (await fetchAdmin(url)).json();
+                currentLeads = data.leads || [];
+                if (!currentLeads.length) {
+                    tbody.innerHTML = `<tr><td colspan="9" class="grid-empty">
+                        <strong>No leads yet.</strong> Scored leads from the public form appear here.</td></tr>`;
                     return;
                 }
-
-                const intelligenceNote = `
-                    <article class="assignment-intelligence">
-                        <p class="section-kicker">AI routing note</p>
-                        <p>${escapeHtml(data.lead.best_customer_fit_reason)}</p>
-                        <p><strong>Follow-up:</strong> ${escapeHtml(data.lead.recommended_followup)}</p>
-                    </article>
-                `;
-
-                assignmentOptions.innerHTML = data.recommendations.map((candidate, index) => `
-                    <article class="assignment-card ${candidate.can_assign ? 'assignment-ready' : 'assignment-blocked'}">
-                        <div class="assignment-card-header">
-                            <div>
-                                <h4>${escapeHtml(candidate.company_name)}</h4>
-                                <p>${escapeHtml(candidate.subscription_tier)} plan • ${escapeHtml(candidate.subscription_status)}</p>
-                            </div>
-                            <div class="assignment-score-group">
-                                ${index === 0 && candidate.can_assign ? '<span class="recommendation-pill">Best fit</span>' : ''}
-                                <span class="priority-score">${candidate.priority_score}</span>
-                            </div>
-                        </div>
-                        <p class="assignment-meta">
-                            ${candidate.leads_remaining} included leads remaining • ${candidate.purchase_type === 'overage' ? `Overage ${formatCurrency(candidate.projected_price)}` : 'Included allocation'}
-                        </p>
-                        <p class="assignment-reason">${escapeHtml(candidate.fit_reason || candidate.billing_message)}</p>
-                        <button
-                            type="button"
-                            ${candidate.can_assign ? '' : 'disabled'}
-                            onclick="assignLeadToCustomer('${candidate.customer_id}')"
-                        >
-                            ${candidate.can_assign ? 'Assign lead' : 'Billing action required'}
-                        </button>
-                    </article>
-                `).join('') + intelligenceNote;
+                tbody.innerHTML = currentLeads.map(rowForLead).join('');
             } catch (err) {
-                assignmentSummary.textContent = err.message || 'Unable to load assignment options.';
+                tbody.innerHTML = `<tr><td colspan="9" class="grid-empty">${esc(err.message)}</td></tr>`;
             }
         }
 
-        async function assignLeadToCustomer(customerId) {
-            if (!activeAssignmentLeadId) return;
+        function rowForLead(lead) {
+            const val = Number(lead.estimated_job_value || 0);
+            const highValue = val >= HIGH_VALUE ? ' <span class="badge badge-value">High value</span>' : '';
+            const assigned = lead.assigned_to ? esc(customerNameById[lead.assigned_to] || 'Assigned') : '—';
+            return `<tr class="lead-row ${lead.id === selectedLeadId ? 'is-selected' : ''}" data-lead-id="${lead.id}">
+                <td><div class="cell-strong">${esc(lead.full_name)}</div><div class="cell-muted">${esc(lead.email)}</div></td>
+                <td><span class="badge badge-score-${scoreClass(lead.score)}">${lead.score}</span></td>
+                <td>${pct(lead.booking_probability)}</td>
+                <td>${money(val)}${highValue}</td>
+                <td class="cap">${esc(lead.route_type || '—')}</td>
+                <td><span class="badge badge-risk-${riskClass(lead.fraud_risk)}">${esc(lead.fraud_risk || '—')}</span></td>
+                <td>${statusBadge(lead.status)}</td>
+                <td class="cell-muted">${assigned}</td>
+                <td class="cell-muted">${fmtDate(lead.created_at)}</td>
+            </tr>`;
+        }
 
+        function statusBadge(status) {
+            const s = status || 'available';
+            if (s === 'sold') return '<span class="badge badge-sold">Sold</span>';
+            if (s === 'available') return '<span class="badge badge-available">Available</span>';
+            return `<span class="badge">${esc(s)}</span>`;
+        }
+
+        /* ---- row selection -> assignment ---- */
+        document.getElementById('leads-tbody').addEventListener('click', (e) => {
+            const row = e.target.closest('.lead-row');
+            if (!row) return;
+            selectLead(row.dataset.leadId);
+        });
+
+        async function selectLead(leadId) {
+            selectedLeadId = leadId;
+            document.querySelectorAll('.lead-row').forEach(r =>
+                r.classList.toggle('is-selected', r.dataset.leadId === leadId));
+            const lead = currentLeads.find(l => l.id === leadId);
+            panel.innerHTML = '<div class="assign-empty"><p>Loading recommendations…</p></div>';
             try {
-                const res = await fetchAdmin(`/admin/leads/${activeAssignmentLeadId}/assign?customer_id=${customerId}`, {
-                    method: 'POST'
-                });
-                const data = await res.json();
-
-                if (!res.ok) {
-                    throw new Error(data.detail || 'Failed to assign lead.');
-                }
-
-                assignmentSummary.textContent = data.message;
-                await Promise.all([loadLeads(), loadCustomers(), loadAnalytics()]);
+                const data = await (await fetchAdmin(`/admin/leads/${leadId}/assignment-options`)).json();
+                renderAssignment(data, lead);
             } catch (err) {
-                assignmentSummary.textContent = err.message || 'Error assigning lead.';
+                panel.innerHTML = `<div class="assign-empty"><p class="assign-empty-title">Couldn’t load</p><p>${esc(err.message)}</p></div>`;
             }
         }
 
+        function renderAssignment(data, leadRow) {
+            const lead = data.lead;
+            const sold = (leadRow?.status || lead.status) === 'sold';
+            const recs = data.recommendations || [];
+            const best = recs.find(r => r.can_assign) || null;
+
+            const header = `
+                <div class="assign-head">
+                    <div class="assign-lead-name">
+                        <span class="badge badge-score-${scoreClass(lead.score)}">${lead.score}</span>
+                        <strong>${esc(lead.full_name)}</strong>
+                        ${statusBadge(leadRow?.status || lead.status)}
+                    </div>
+                    <div class="assign-chips">
+                        <span>${pct(lead.booking_probability)} booking</span>
+                        <span>${money(lead.estimated_job_value)} value</span>
+                        <span class="cap">${esc(lead.route_type)} · ${esc(lead.move_complexity)}</span>
+                        <span class="badge badge-risk-${riskClass(lead.fraud_risk)}">${esc(lead.fraud_risk)} risk</span>
+                    </div>
+                    <div class="assign-ainote">
+                        <span class="ai-label">AI fit · ${lead.confidence ?? '—'}% confidence</span>
+                        ${esc(lead.best_customer_fit_reason)}
+                    </div>
+                </div>`;
+
+            if (sold) {
+                panel.innerHTML = header + `<div class="assign-note assign-note-sold">This lead is already sold${leadRow?.assigned_to ? ' to ' + esc(customerNameById[leadRow.assigned_to] || 'a customer') : ''}.</div>`;
+                return;
+            }
+            if (!recs.length) {
+                panel.innerHTML = header + `<div class="assign-empty inset">
+                    <p class="assign-empty-title">No eligible buyers</p>
+                    <p>Add an active customer subscription, then reassign.</p></div>`;
+                return;
+            }
+
+            const bestCard = best ? `
+                <div class="best-buyer">
+                    <div class="best-tag">Recommended buyer</div>
+                    <div class="best-row">
+                        <div>
+                            <div class="best-name">${esc(best.company_name)}</div>
+                            <div class="best-sub cap">${esc(best.subscription_tier)} · ${esc(best.subscription_status)}</div>
+                        </div>
+                        <div class="best-score" title="Priority score">${best.priority_score}</div>
+                    </div>
+                    <div class="best-meta">
+                        <span class="badge ${best.purchase_type === 'overage' ? 'badge-overage' : 'badge-included'}">
+                            ${best.purchase_type === 'overage' ? 'Overage' : 'Included'}</span>
+                        <span class="best-price">${best.purchase_type === 'overage' ? money(best.projected_price) : '$0'}</span>
+                        <span class="cell-muted">${best.leads_remaining} included left</span>
+                    </div>
+                    <p class="best-why">${esc(best.fit_reason || '')}</p>
+                    <button class="btn-assign" onclick="assignLead('${best.customer_id}')">
+                        Assign · ${best.purchase_type === 'overage' ? money(best.projected_price) + ' overage' : 'included'}
+                    </button>
+                </div>` : '';
+
+            const others = recs.filter(r => r !== best).map(c => `
+                <div class="cand ${c.can_assign ? '' : 'cand-blocked'}">
+                    <div class="cand-top">
+                        <div>
+                            <div class="cand-name">${esc(c.company_name)}</div>
+                            <div class="cell-muted cap">${esc(c.subscription_tier)} · ${c.purchase_type === 'overage' ? 'overage ' + money(c.projected_price) : 'included'}</div>
+                        </div>
+                        <span class="cand-score">${c.priority_score}</span>
+                    </div>
+                    ${c.can_assign
+                        ? `<button class="btn-ghost btn-sm" onclick="assignLead('${c.customer_id}')">Assign</button>`
+                        : `<div class="cand-block">⚠ ${esc(c.billing_message || 'Not assignment-ready')}</div>`}
+                </div>`).join('');
+
+            panel.innerHTML = header
+                + (bestCard || `<div class="assign-note">No buyer is billing-ready right now.</div>`)
+                + (others ? `<div class="cand-list"><p class="cand-list-title">Other buyers</p>${others}</div>` : '');
+        }
+
+        async function assignLead(customerId) {
+            if (!selectedLeadId) return;
+            try {
+                const res = await fetchAdmin(`/admin/leads/${selectedLeadId}/assign?customer_id=${customerId}`, { method: 'POST' });
+                const data = await res.json();
+                panel.innerHTML = `<div class="assign-success">
+                    <p class="assign-success-title">✓ Lead assigned</p>
+                    <p>${esc(data.message || 'Done')}</p>
+                    <p class="cell-muted">${data.purchase_type === 'overage' ? 'Overage ' + money(data.price) + ' · ' + esc(data.payment_status) : 'Included allocation'}</p>
+                </div>`;
+                await loadDashboard();
+            } catch (err) {
+                panel.innerHTML = `<div class="assign-note assign-note-error">${esc(err.message)}</div>` + panel.innerHTML;
+            }
+        }
+
+        /* ---- auth ---- */
         authForm.addEventListener('submit', async (event) => {
             event.preventDefault();
-            const username = document.getElementById('admin-username').value.trim();
-            const password = document.getElementById('admin-password').value;
-
-            adminAuthHeader = 'Basic ' + btoa(`${username}:${password}`);
-
+            const u = document.getElementById('admin-username').value.trim();
+            const p = document.getElementById('admin-password').value;
+            adminAuthHeader = 'Basic ' + btoa(`${u}:${p}`);
             try {
-                await loadAnalytics();
+                await loadDashboard();
                 showAuthError('');
                 showDashboard();
             } catch (err) {
@@ -431,23 +406,7 @@
             }
         });
 
-        async function initializeDashboard() {
-            if (!adminAuthHeader) {
-                showLogin();
-                return;
-            }
-
-            try {
-                await loadAnalytics();
-                showDashboard();
-            } catch (err) {
-                adminAuthHeader = '';
-                showLogin();
-                showAuthError(err.message || 'Unable to authenticate.');
-            }
-        }
-
-        initializeDashboard();
+        showLogin();
     </script>
 </body>
 
