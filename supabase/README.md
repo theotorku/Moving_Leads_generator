@@ -32,8 +32,13 @@ schema source of truth. That caused three concrete problems this layer fixes:
 6. `migrations/20260101000006_advisor_hardening.sql` — pin `set_updated_at`
    search_path; `security_invoker` on the reconciliation views.
 7. `migrations/20260101000004_rls_hardening.sql` + `…0007_revoke_anon_grants.sql`
-   — enable RLS and lock down anon (see Security below). **Apply these last, and
-   only after the backend is on the service_role key.**
+   + `…0008_lock_down_leads_anon.sql` — enable RLS and lock down anon (see
+   Security below). **Apply these last, and only after the backend is on the
+   service_role key.**
+8. `migrations/20260101000009_lead_outcomes.sql` — outcome columns on
+   `lead_purchases` plus `record_lead_outcome()` and `conversion_analytics()`
+   RPCs: the feedback loop (sold → contacted → appointment → booked, plus
+   lost/disputed) and **cost per booked move**.
 
 ## Security model (RLS)
 

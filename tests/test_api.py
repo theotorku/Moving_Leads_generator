@@ -492,6 +492,45 @@ def test_customer_portal_page_is_served():
     assert "Customer Portal" in response.text
 
 
+# --- Outcome feedback loop ---------------------------------------------------
+
+def test_record_lead_outcome_booked():
+    mock_supabase = _rpc_supabase(returns={
+        "success": True, "purchase_id": "p-1", "outcome": "booked",
+        "booked_revenue": 2400, "payment_status": "recorded", "note": "Outcome recorded",
+    })
+    with patch("app.services.admin_service.get_supabase_client", return_value=mock_supabase):
+        res = client.post(
+            "/admin/purchases/p-1/outcome?outcome=booked&booked_revenue=2400",
+            headers=auth_headers(),
+        )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["outcome"] == "booked"
+    assert body["booked_revenue"] == 2400
+
+
+def test_record_lead_outcome_invalid_maps_to_400():
+    mock_supabase = _rpc_supabase(raises=FakeAPIError("invalid_outcome:foo"))
+    with patch("app.services.admin_service.get_supabase_client", return_value=mock_supabase):
+        res = client.post("/admin/purchases/p-1/outcome?outcome=foo", headers=auth_headers())
+    assert res.status_code == 400
+
+
+def test_conversion_analytics_endpoint():
+    mock_supabase = _rpc_supabase(returns={
+        "sold": 2, "contacted": 2, "appointment": 1, "booked": 1,
+        "lost": 0, "disputed": 0, "booked_revenue": 2400,
+        "lead_spend": 12, "cost_per_booked_move": 12.0, "book_rate": 50.0,
+    })
+    with patch("app.services.admin_service.get_supabase_client", return_value=mock_supabase):
+        res = client.get("/admin/conversion", headers=auth_headers())
+    assert res.status_code == 200
+    body = res.json()
+    assert body["booked"] == 1
+    assert body["cost_per_booked_move"] == 12.0
+
+
 # --- Stripe webhook reconciliation ------------------------------------------
 
 import stripe  # noqa: E402

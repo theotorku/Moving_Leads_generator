@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Command Center — Moving Leads AI</title>
-    <link rel="stylesheet" href="/static/admin.css?v=4">
+    <link rel="stylesheet" href="/static/admin.css?v=5">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -42,6 +42,9 @@
                 <div class="metric"><span id="m-customers">--</span><label>Customers</label></div>
                 <div class="metric"><span id="m-mrr">$--</span><label>MRR</label></div>
                 <div class="metric"><span id="m-overage">$--</span><label>Overage</label></div>
+                <div class="metric"><span id="m-booked">--</span><label>Booked</label></div>
+                <div class="metric"><span id="m-cpbm">$--</span><label>$/Booked</label></div>
+                <div class="metric"><span id="m-disputed">--</span><label>Disputes</label></div>
             </div>
 
             <nav class="topnav">
@@ -223,7 +226,27 @@
 
         /* ---- data loads ---- */
         async function loadDashboard() {
-            await Promise.all([loadAnalytics(), loadCustomers().then(loadLeads)]);
+            await Promise.all([loadAnalytics(), loadConversion(), loadCustomers().then(loadLeads)]);
+        }
+
+        async function loadConversion() {
+            try {
+                const c = await (await fetchAdmin('/admin/conversion')).json();
+                document.getElementById('m-booked').textContent = c.booked ?? 0;
+                document.getElementById('m-cpbm').textContent =
+                    c.cost_per_booked_move == null ? '—' : money(c.cost_per_booked_move);
+                document.getElementById('m-disputed').textContent = c.disputed ?? 0;
+            } catch (err) {
+                console.error('conversion load failed', err);
+            }
+        }
+
+        function outcomeBadge(outcome) {
+            const cls = {
+                booked: 'badge-ok', contacted: 'badge-available', appointment: 'badge-available',
+                disputed: 'badge-blocked', lost: 'badge-sold', refunded: 'badge-overage',
+            }[outcome] || 'badge-sold';
+            return `<span class="badge ${cls}">${esc(outcome)}</span>`;
         }
 
         async function loadAnalytics() {
@@ -288,6 +311,9 @@
             const val = Number(lead.estimated_job_value || 0);
             const highValue = val >= HIGH_VALUE ? ' <span class="badge badge-value">High value</span>' : '';
             const assigned = lead.assigned_to ? esc(customerNameById[lead.assigned_to] || 'Assigned') : '—';
+            const purchase = (lead.lead_purchases || [])[0];
+            const outcomeCell = (lead.status === 'sold' && purchase)
+                ? `<div class="outcome-sub">${outcomeBadge(purchase.outcome || 'purchased')}</div>` : '';
             return `<tr class="lead-row ${lead.id === selectedLeadId ? 'is-selected' : ''}" data-lead-id="${lead.id}">
                 <td><div class="cell-strong">${esc(lead.full_name)}</div><div class="cell-muted">${esc(lead.email)}</div></td>
                 <td><span class="badge badge-score-${scoreClass(lead.score)}">${lead.score}</span></td>
@@ -295,7 +321,7 @@
                 <td>${money(val)}${highValue}</td>
                 <td class="cap">${esc(lead.route_type || '—')}</td>
                 <td><span class="badge badge-risk-${riskClass(lead.fraud_risk)}">${esc(lead.fraud_risk || '—')}</span></td>
-                <td>${statusBadge(lead.status)}</td>
+                <td>${statusBadge(lead.status)}${outcomeCell}</td>
                 <td class="cell-muted">${assigned}</td>
                 <td class="cell-muted">${fmtDate(lead.created_at)}</td>
             </tr>`;
@@ -355,7 +381,29 @@
                 </div>`;
 
             if (sold) {
-                panel.innerHTML = header + `<div class="assign-note assign-note-sold">This lead is already sold${leadRow?.assigned_to ? ' to ' + esc(customerNameById[leadRow.assigned_to] || 'a customer') : ''}.</div>`;
+                const purchase = (leadRow?.lead_purchases || [])[0];
+                const buyer = leadRow?.assigned_to ? esc(customerNameById[leadRow.assigned_to] || 'a customer') : 'a customer';
+                if (!purchase) {
+                    panel.innerHTML = header + `<div class="assign-note assign-note-sold">Sold to ${buyer}.</div>`;
+                    return;
+                }
+                const oc = purchase.outcome || 'purchased';
+                const rev = Number(purchase.booked_revenue || 0);
+                panel.innerHTML = header + `
+                    <div class="outcome-box">
+                        <div class="outcome-current">
+                            Sold to <strong>${buyer}</strong> · outcome ${outcomeBadge(oc)}
+                            ${rev > 0 ? ` · ${money(rev)} booked` : ''}
+                        </div>
+                        <p class="outcome-hint">Update the outcome to track conversion and cost per booked move.</p>
+                        <div class="outcome-actions">
+                            <button class="btn-ghost btn-sm" onclick="setOutcome('${purchase.id}','contacted')">Contacted</button>
+                            <button class="btn-ghost btn-sm" onclick="setOutcome('${purchase.id}','appointment')">Appointment</button>
+                            <button class="btn-assign btn-inline" onclick="markBooked('${purchase.id}')">Booked…</button>
+                            <button class="btn-ghost btn-sm" onclick="setOutcome('${purchase.id}','lost')">Lost</button>
+                            <button class="btn-ghost btn-sm btn-danger" onclick="disputeLead('${purchase.id}')">Dispute…</button>
+                        </div>
+                    </div>`;
                 return;
             }
             if (!recs.length) {
@@ -420,6 +468,28 @@
             } catch (err) {
                 panel.innerHTML = `<div class="assign-note assign-note-error">${esc(err.message)}</div>` + panel.innerHTML;
             }
+        }
+
+        /* ---- outcome feedback loop ---- */
+        async function setOutcome(purchaseId, outcome, extra = {}) {
+            let qs = `outcome=${encodeURIComponent(outcome)}`;
+            if (extra.booked_revenue != null) qs += `&booked_revenue=${encodeURIComponent(extra.booked_revenue)}`;
+            if (extra.dispute_reason) qs += `&dispute_reason=${encodeURIComponent(extra.dispute_reason)}`;
+            try {
+                await fetchAdmin(`/admin/purchases/${purchaseId}/outcome?${qs}`, { method: 'POST' });
+                await loadDashboard();
+                if (selectedLeadId) selectLead(selectedLeadId);
+            } catch (err) {
+                panel.innerHTML = `<div class="assign-note assign-note-error">${esc(err.message)}</div>` + panel.innerHTML;
+            }
+        }
+        function markBooked(purchaseId) {
+            const v = prompt('Booked revenue (USD)?', '');
+            if (v !== null) setOutcome(purchaseId, 'booked', { booked_revenue: Number(v) || 0 });
+        }
+        function disputeLead(purchaseId) {
+            const r = prompt('Dispute reason? (wrong number, duplicate, not moving, out of area, spam)');
+            if (r) setOutcome(purchaseId, 'disputed', { dispute_reason: r });
         }
 
         /* ---- auth ---- */

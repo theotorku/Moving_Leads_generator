@@ -178,6 +178,16 @@ main { flex: 1; padding: 18px 20px; max-width: 1500px; width: 100%; margin: 0 au
 .assign-note { margin: 16px; padding: 12px; border-radius: var(--radius-sm); background: var(--surface-2); font-size: 13px; color: var(--muted); }
 .assign-note-sold { background: #eef1f4; }
 .assign-note-error { background: var(--danger-bg); color: var(--danger); }
+/* outcome feedback loop */
+.outcome-sub { margin-top: 4px; }
+.outcome-box { padding: 16px; }
+.outcome-current { font-size: 13.5px; }
+.outcome-hint { margin: 8px 0 12px; font-size: 12px; color: var(--muted); }
+.outcome-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn-inline { width: auto; padding: 5px 12px; font-size: 12px; }
+.btn-danger { border-color: #f0c4c4; color: var(--danger); }
+.btn-danger:hover { border-color: var(--danger); color: var(--danger); }
+
 .assign-success { padding: 20px 16px; }
 .assign-success-title { font-weight: 700; color: var(--success); margin: 0 0 6px; }
 .assign-success p { margin: 0 0 4px; font-size: 13px; }

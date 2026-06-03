@@ -10,9 +10,11 @@ from ..models import LeadStatus
 from ..services.admin_service import (
     assign_lead_to_customer,
     get_admin_analytics,
+    get_conversion_analytics,
     list_lead_assignment_options,
     list_customers_for_admin,
     list_leads_for_admin,
+    record_lead_outcome,
 )
 
 router = APIRouter()
@@ -73,3 +75,24 @@ async def list_customers(admin: str = Depends(verify_admin)):
 async def get_analytics(admin: str = Depends(verify_admin)):
     """Get revenue and usage analytics"""
     return get_admin_analytics()
+
+@router.get("/admin/conversion")
+async def get_conversion(admin: str = Depends(verify_admin)):
+    """Get the sold->booked funnel and cost per booked move."""
+    return get_conversion_analytics()
+
+@router.post("/admin/purchases/{purchase_id}/outcome")
+async def set_purchase_outcome(
+    purchase_id: str,
+    outcome: str,
+    booked_revenue: Optional[float] = Query(default=None, ge=0),
+    dispute_reason: Optional[str] = None,
+    admin: str = Depends(verify_admin),
+):
+    """Record the outcome of a sold lead (the feedback loop)."""
+    return record_lead_outcome(
+        purchase_id=purchase_id,
+        outcome=outcome,
+        booked_revenue=booked_revenue,
+        dispute_reason=dispute_reason,
+    )

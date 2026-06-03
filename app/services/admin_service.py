@@ -131,7 +131,11 @@ def list_leads_for_admin(status: LeadStatus | None = None, min_score: int | None
     supabase = _get_supabase()
 
     try:
-        query = supabase.table("leads").select("*")
+        # Embed the purchase so sold leads carry their purchase_id + outcome
+        # (the Command Center needs it to drive the feedback loop).
+        query = supabase.table("leads").select(
+            "*, lead_purchases(id, outcome, price_paid, payment_status, purchase_type, booked_revenue)"
+        )
         if status:
             query = query.eq("status", status.value)
         if min_score is not None:
@@ -375,6 +379,54 @@ def list_customers_for_admin() -> dict:
     except Exception:
         logger.exception("Failed to list customers for admin")
         raise HTTPException(status_code=500, detail="Unable to load customers.")
+
+
+def record_lead_outcome(
+    purchase_id: str,
+    outcome: str,
+    booked_revenue: float | None = None,
+    dispute_reason: str | None = None,
+) -> dict:
+    """Advance a sold lead through the funnel (or dispute it) via the RPC."""
+    supabase = _get_supabase()
+    try:
+        response = supabase.rpc(
+            "record_lead_outcome",
+            {
+                "p_purchase_id": purchase_id,
+                "p_outcome": outcome,
+                "p_booked_revenue": booked_revenue,
+                "p_dispute_reason": dispute_reason,
+            },
+        ).execute()
+    except Exception as exc:  # noqa: BLE001
+        message = (getattr(exc, "message", None) or str(exc) or "").strip()
+        if "invalid_outcome" in message:
+            raise HTTPException(status_code=400, detail="Invalid outcome.") from exc
+        if "purchase_not_found" in message:
+            raise HTTPException(status_code=404, detail="Purchase not found.") from exc
+        logger.exception("Failed to record lead outcome for purchase %s", purchase_id)
+        raise HTTPException(status_code=500, detail="Unable to record outcome.") from exc
+
+    result = response.data or {}
+    return {
+        "success": True,
+        "purchase_id": result.get("purchase_id"),
+        "outcome": result.get("outcome"),
+        "booked_revenue": result.get("booked_revenue"),
+        "payment_status": result.get("payment_status"),
+        "message": result.get("note", "Outcome recorded"),
+    }
+
+
+def get_conversion_analytics() -> dict:
+    """Funnel + cost-per-booked-move from the conversion_analytics() RPC."""
+    supabase = _get_supabase()
+    try:
+        return (supabase.rpc("conversion_analytics", {}).execute()).data or {}
+    except Exception:
+        logger.exception("Failed to load conversion analytics")
+        raise HTTPException(status_code=500, detail="Unable to load conversion analytics.")
 
 
 def get_admin_analytics() -> dict:
