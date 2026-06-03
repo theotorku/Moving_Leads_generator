@@ -57,7 +57,7 @@ begin
                 'price',         v_existing.price_paid,
                 'payment_status', v_existing.payment_status,
                 'lead_status',   'sold',
-                'message',       'Lead assignment already recorded.'
+                'note',          'Lead assignment already recorded.'
             );
         end if;
     end if;
@@ -133,7 +133,7 @@ begin
         'payment_status', v_payment_status,
         'subscription_id', v_sub.id,
         'lead_status',    'sold',
-        'message',        'Lead assigned to customer'
+        'note',           'Lead assigned to customer'
     );
 end;
 $$;

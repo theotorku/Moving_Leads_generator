@@ -338,7 +338,7 @@ async def assign_lead_to_customer(
         "price": result.get("price"),
         "payment_status": payment_status,
         "lead_status": result.get("lead_status", LeadStatus.sold.value),
-        "message": result.get("message", "Lead assigned to customer"),
+        "message": result.get("note", "Lead assigned to customer"),
     }
 
 

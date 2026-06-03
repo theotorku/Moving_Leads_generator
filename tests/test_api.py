@@ -262,7 +262,7 @@ def test_assign_lead_included_returns_success():
             "price": 0,
             "payment_status": "recorded",
             "lead_status": "sold",
-            "message": "Lead assigned to customer",
+            "note": "Lead assigned to customer",
             "purchase_id": "purchase-1",
         }
     )
