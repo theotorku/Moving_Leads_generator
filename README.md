@@ -11,7 +11,7 @@ An AI-powered lead generation and monetization platform for the moving industry,
 
 ### Monetization System
 - **Hybrid Revenue Model** - Base subscription + pay-per-lead overage
-- **Subscription Health Sync** - Stripe subscription status is refreshed before key customer and assignment workflows
+- **Webhook Reconciliation** - Stripe subscription/payment events keep the database in sync via `POST /stripe/webhook` (idempotent); set `RECONCILE_VIA_WEBHOOK=true` to make it authoritative and skip per-read Stripe calls
 - **Three Pricing Tiers:**
   - **Starter:** $299/mo - 30 leads included, $12/lead overage
   - **Professional:** $599/mo - 75 leads included, $10/lead overage
@@ -43,29 +43,39 @@ An AI-powered lead generation and monetization platform for the moving industry,
 Moving_Leads_generator/
 │
 ├── app/
-│   ├── main.py                  # FastAPI app & routes
+│   ├── main.py                  # FastAPI app, routers, static frontend
+│   ├── config.py                # Settings (env-driven; secrets via SecretStr)
 │   ├── models.py                # Pydantic schemas
-│   ├── db.py                    # Supabase client
+│   ├── db.py                    # Supabase client (uses the service_role key)
 │   ├── routes/
 │   │   ├── leads.py             # Lead scoring & persistence
-│   │   ├── customers.py         # Customer registration & usage
-│   │   └── admin.py             # Admin dashboard API
+│   │   ├── customers.py         # Customer registration, usage, portal
+│   │   ├── admin.py             # Admin dashboard API
+│   │   └── webhooks.py          # Stripe webhook endpoint
 │   ├── ai/
 │   │   └── scorer.py            # OpenAI lead analysis
 │   └── services/
-│       └── stripe_service.py    # Payment processing
+│       ├── admin_service.py     # Lead assignment (RPC) & analytics
+│       ├── customer_service.py  # Registration & portal
+│       ├── stripe_service.py    # Stripe + pricing tiers
+│       └── webhook_service.py   # Webhook verification & reconciliation
 │
-├── frontend/
-│   ├── index.html               # Product landing page + lead capture form
-│   ├── style.css                # Landing page and form styling
-│   ├── admin.html               # Admin dashboard
-│   └── admin.css                # Dashboard styling
+├── frontend/                    # Server-rendered UI (no build step)
+│   ├── index.html / style.css            # Lead capture form  (/)
+│   ├── admin.html / admin.css            # Admin dashboard     (/admin)
+│   └── customer.html / customer.css      # Customer portal     (/portal)
+│
+├── supabase/
+│   ├── migrations/              # Schema, RPCs, RLS (apply with `supabase db push`)
+│   └── README.md                # DB layer + security model
 │
 ├── tests/
-│   └── test_api.py              # API integration tests
+│   ├── test_api.py              # API tests (mocked Supabase)
+│   └── integration/             # Opt-in live-DB smoke tests (RUN_SUPABASE_IT=1)
 │
 ├── .env.example                 # Environment variables template
 ├── Dockerfile                   # Production container
+├── render.yaml                  # Render deploy blueprint
 ├── requirements.txt
 └── README.md
 ```
@@ -103,32 +113,33 @@ Moving_Leads_generator/
    ```bash
    # OpenAI
    OPENAI_API_KEY=sk-...
-   
-   # Supabase
+
+   # Supabase — the backend uses the SERVICE_ROLE key (bypasses RLS; keep server-side only)
    SUPABASE_URL=https://your-project.supabase.co
-   SUPABASE_KEY=your-anon-key
-   
+   SUPABASE_KEY=your-service-role-key
+
    # Stripe (for monetization)
    STRIPE_SECRET_KEY=sk_test_...
-   STRIPE_PUBLISHABLE_KEY=pk_test_...
-   
-    # Admin Dashboard (replace defaults before production)
-    ADMIN_USERNAME=admin
-    ADMIN_PASSWORD=your-secure-password
+   STRIPE_WEBHOOK_SECRET=whsec_...          # for POST /stripe/webhook
+   RECONCILE_VIA_WEBHOOK=false              # set true once the webhook is live
+
+   # Admin Dashboard (replace defaults before production)
+   ADMIN_USERNAME=admin
+   ADMIN_PASSWORD=your-secure-password
    ```
 
-5. **Set up Supabase data tables:**
-    
-   Create the tables used by the application in your Supabase project:
-   - `leads`
-   - `customers`
-   - `subscriptions`
-   - `lead_purchases`
+5. **Apply the database migrations:**
 
-   The `leads` table should include the base lead fields plus AI intelligence columns:
-   `score`, `reasoning`, `booking_probability`, `estimated_job_value`, `route_type`,
-   `move_complexity`, `fraud_risk`, `missing_info`, `recommended_followup`,
-   `confidence`, `best_customer_fit_reason`, `status`, and `assigned_to`.
+   The schema, RPCs, and row-level security live in `supabase/migrations/`. Apply
+   them to your project (don't hand-create tables) — see `supabase/README.md`:
+   ```bash
+   supabase link --project-ref <your-project-ref>
+   supabase db push
+   ```
+   Or paste each migration, in order, into the Supabase SQL Editor. This creates
+   `leads`, `customers`, `subscriptions`, `lead_purchases`, `pricing_tiers`, and
+   `stripe_events`, the `assign_lead_to_customer` / `admin_analytics` RPCs, the
+   reconciliation views, and enables RLS.
 
 6. **Run the application:**
    ```bash
@@ -161,7 +172,10 @@ pytest
 ## 📊 API Endpoints
 
 ### Public Endpoints
-- `POST /leads/score` - Submit and score a lead
+- `POST /leads/score` - Submit and score a lead (returns the scored lead + persistence status)
+
+### Webhooks
+- `POST /stripe/webhook` - Stripe event reconciliation (signature-verified, idempotent via `stripe_events`)
 
 ### Customer Endpoints
 - `POST /customers/register` - Register new customer with subscription
@@ -199,10 +213,17 @@ The platform uses a hybrid monetization strategy:
 
 ## 🔒 Security
 
+- **Service-role backend / locked-down database** - the backend authenticates with
+  the Supabase `service_role` key and is the only client that touches the database.
+  **RLS is enabled on every table** and anon/authenticated have no access; the
+  privileged RPCs are `EXECUTE`-restricted to `service_role`. See `supabase/README.md`.
+- **Atomic lead sales** - `assign_lead_to_customer` runs as a single Postgres
+  transaction with row locking + a `unique(lead_id)` guard, preventing duplicate or
+  partial sales. Overage charges are linked to Stripe and surfaced in the
+  `billing_reconciliation` views.
 - Startup validation with environment-based configuration warnings
-- Basic HTTP authentication for admin routes
-- Row-level security ready (Supabase)
-- Secrets excluded from version control
+- Basic HTTP authentication for admin routes (replace the default credentials)
+- Secrets via `SecretStr`, excluded from version control
 
 ## 📝 License
 
