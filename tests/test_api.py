@@ -94,8 +94,8 @@ def test_read_main():
 
     assert response.status_code == 200
     assert "Moving Leads AI" in response.text
-    assert "AI-powered lead scoring for moving companies" in response.text
-    assert '<label for="home_size">Home Size</label>' in response.text
+    assert "Score a moving lead" in response.text
+    assert '<label for="home_size">Home size</label>' in response.text
 
 
 def test_score_lead_endpoint_persists_scored_lead():

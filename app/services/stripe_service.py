@@ -133,11 +133,14 @@ async def create_customer(email: str, company_name: str, idempotency_key: str | 
             logger.warning("Stripe customer creation requested without STRIPE_SECRET_KEY configured.")
             return {"success": False, "error": "Payment provider is not configured."}
 
+        # No email-based idempotency default: a failed registration deletes the
+        # Stripe customer (rollback), so replaying a cached email key would
+        # return a now-deleted customer. DB enforces email uniqueness instead.
         customer = stripe.Customer.create(
             email=email,
             name=company_name,
             api_key=api_key,
-            idempotency_key=idempotency_key or f"customer:{email.casefold()}",
+            idempotency_key=idempotency_key,
         )
         return {"stripe_customer_id": customer.id, "success": True}
     except stripe.error.StripeError:
@@ -158,23 +161,26 @@ async def create_subscription(customer_id: str, tier: str, idempotency_key: str 
             logger.warning("Stripe subscription creation requested without STRIPE_SECRET_KEY configured.")
             return {"success": False, "error": "Payment provider is not configured."}
 
-        # In production, you'd create a Stripe Price/Product first
-        # For now, we'll use a simple subscription without a product
+        # Create the recurring price (with an inline product) first — the
+        # Subscription API rejects inline price_data.product_data, so the price
+        # must exist before we subscribe to it.
+        price = stripe.Price.create(
+            currency="usd",
+            unit_amount=PRICING_TIERS[tier]["price"] * 100,  # Stripe uses cents
+            recurring={"interval": "month"},
+            product_data={"name": f"{tier.capitalize()} Plan"},
+            api_key=api_key,
+            idempotency_key=(idempotency_key or f"price:{customer_id}:{tier}") + ":price",
+        )
+        # Start on a trial so the subscription activates without a payment method
+        # (admin-initiated onboarding); status will be "trialing".
         subscription = stripe.Subscription.create(
             customer=customer_id,
-            items=[{
-                "price_data": {
-                    "currency": "usd",
-                    "product_data": {
-                        "name": f"{tier.capitalize()} Plan"
-                    },
-                    "unit_amount": PRICING_TIERS[tier]["price"] * 100,  # Stripe uses cents
-                    "recurring": {"interval": "month"}
-                }
-            }],
+            items=[{"price": price.id}],
+            trial_period_days=14,
             metadata={
                 "tier": tier,
-                "leads_included": PRICING_TIERS[tier]["leads_included"]
+                "leads_included": str(PRICING_TIERS[tier]["leads_included"]),
             },
             api_key=api_key,
             idempotency_key=idempotency_key or f"subscription:{customer_id}:{tier}",
