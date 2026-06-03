@@ -6,15 +6,17 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from ..config import get_settings
-from ..models import LeadStatus
+from ..models import LeadStatus, RoutingProfileUpdate
 from ..services.admin_service import (
     assign_lead_to_customer,
     get_admin_analytics,
     get_conversion_analytics,
+    get_routing_profile,
     list_lead_assignment_options,
     list_customers_for_admin,
     list_leads_for_admin,
     record_lead_outcome,
+    upsert_routing_profile,
 )
 
 router = APIRouter()
@@ -70,6 +72,20 @@ async def get_assignment_options(
 async def list_customers(admin: str = Depends(verify_admin)):
     """List all customers with their subscriptions"""
     return list_customers_for_admin()
+
+@router.get("/admin/customers/{customer_id}/routing-profile")
+async def read_routing_profile(customer_id: str, admin: str = Depends(verify_admin)):
+    """Get a customer's lead-routing profile."""
+    return get_routing_profile(customer_id)
+
+@router.put("/admin/customers/{customer_id}/routing-profile")
+async def write_routing_profile(
+    customer_id: str,
+    profile: RoutingProfileUpdate,
+    admin: str = Depends(verify_admin),
+):
+    """Create/update a customer's lead-routing profile."""
+    return upsert_routing_profile(customer_id, profile.model_dump())
 
 @router.get("/admin/analytics")
 async def get_analytics(admin: str = Depends(verify_admin)):

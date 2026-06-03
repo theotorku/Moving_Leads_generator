@@ -161,6 +161,16 @@ class CustomerRegistration(BaseModel):
         return _require_phone_digits(value)
 
 
+class RoutingProfileUpdate(BaseModel):
+    """A buyer's lead-routing preferences (empty lists = no restriction)."""
+
+    service_zips: list[str] = Field(default_factory=list)
+    accepted_route_types: list[str] = Field(default_factory=list)
+    accepted_home_sizes: list[str] = Field(default_factory=list)
+    min_job_value: Annotated[int, Field(ge=0, le=100000)] = 0
+    fmcsa_number: Optional[str] = None
+
+
 class ScoreResponse(ScoredLead):
     """Response for POST /leads/score: the scored lead plus persistence status."""
 

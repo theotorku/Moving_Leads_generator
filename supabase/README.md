@@ -43,6 +43,10 @@ schema source of truth. That caused three concrete problems this layer fixes:
    RPC feeding outcomes back into scoring: a new lead's AI booking probability
    is blended toward the real book rate of its route+urgency segment, and high
    dispute segments bump fraud risk (see `app/ai/calibration.py`).
+10. `migrations/20260101000011_routing_profiles.sql` — per-buyer `routing_profiles`
+    (service ZIPs, accepted route types / home sizes, min job value, FMCSA #).
+    Assignment ranks by fit: mismatches are down-ranked with a clear reason
+    (see `_profile_fit` in `app/services/admin_service.py`).
 
 ## Security model (RLS)
 

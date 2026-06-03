@@ -127,6 +127,36 @@ def _candidate_fit_reason(lead: dict, subscription: dict, remaining: int, projec
     )
 
 
+def _profile_fit(lead: dict, profile: dict | None) -> dict:
+    """Compare a lead against a buyer's routing profile. Empty lists = no limit."""
+    profile = profile or {}
+    reasons: list[str] = []
+
+    routes = profile.get("accepted_route_types") or []
+    route_type = lead.get("route_type") or "unknown"
+    if routes and route_type not in routes:
+        reasons.append(f"doesn't accept {route_type} moves")
+
+    sizes = profile.get("accepted_home_sizes") or []
+    home_size = lead.get("home_size")
+    if sizes and home_size and home_size not in sizes:
+        reasons.append(f"doesn't service {home_size}")
+
+    min_value = int(profile.get("min_job_value") or 0)
+    value = int(lead.get("estimated_job_value") or lead.get("budget") or 0)
+    if min_value and value < min_value:
+        reasons.append(f"below ${min_value:,} minimum job value")
+
+    zips = profile.get("service_zips") or []
+    if zips:
+        origin = str(lead.get("origin_zip") or "")
+        destination = str(lead.get("destination_zip") or "")
+        if not any(origin.startswith(z) or destination.startswith(z) for z in zips):
+            reasons.append("outside service area")
+
+    return {"match": not reasons, "reasons": reasons}
+
+
 def list_leads_for_admin(status: LeadStatus | None = None, min_score: int | None = None) -> dict:
     supabase = _get_supabase()
 
@@ -154,7 +184,9 @@ def list_lead_assignment_options(lead_id: str) -> dict:
 
     try:
         lead = _load_lead(supabase, lead_id)
-        customers = supabase.table("customers").select("*, subscriptions(*)").execute()
+        customers = supabase.table("customers").select(
+            "*, subscriptions(*), routing_profiles(*)"
+        ).execute()
         recommendations = []
 
         for customer in customers.data:
@@ -189,14 +221,14 @@ def list_lead_assignment_options(lead_id: str) -> dict:
                     "can_assign": can_assign,
                 }
             )
-            recommendations[-1]["priority_score"] = _candidate_priority_score(
+            base_score = _candidate_priority_score(
                 lead,
                 current_subscription,
                 remaining,
                 recommendations[-1]["projected_price"],
                 can_assign,
             )
-            recommendations[-1]["fit_reason"] = _candidate_fit_reason(
+            fit_reason = _candidate_fit_reason(
                 lead,
                 current_subscription,
                 remaining,
@@ -204,9 +236,24 @@ def list_lead_assignment_options(lead_id: str) -> dict:
                 can_assign,
             )
 
+            # Routing profile fit: down-rank mismatches and explain why.
+            # routing_profiles is a to-one embed (object or null), not a list.
+            rp = customer.get("routing_profiles")
+            if isinstance(rp, list):
+                rp = rp[0] if rp else {}
+            fit = _profile_fit(lead, rp or {})
+            recommendations[-1]["profile_match"] = fit["match"]
+            recommendations[-1]["profile_reasons"] = fit["reasons"]
+            if not fit["match"]:
+                base_score = max(0, base_score - 50)
+                fit_reason = "⚠ Outside routing profile: " + ", ".join(fit["reasons"]) + ". " + fit_reason
+            recommendations[-1]["priority_score"] = base_score
+            recommendations[-1]["fit_reason"] = fit_reason
+
         recommendations.sort(
             key=lambda candidate: (
                 not candidate["can_assign"],
+                not candidate["profile_match"],
                 -candidate["priority_score"],
                 -candidate["leads_remaining"],
                 candidate["projected_price"] > 0,
@@ -427,6 +474,44 @@ def get_conversion_analytics() -> dict:
     except Exception:
         logger.exception("Failed to load conversion analytics")
         raise HTTPException(status_code=500, detail="Unable to load conversion analytics.")
+
+
+_EMPTY_PROFILE = {
+    "service_zips": [], "accepted_route_types": [], "accepted_home_sizes": [],
+    "min_job_value": 0, "fmcsa_number": None,
+}
+
+
+def get_routing_profile(customer_id: str) -> dict:
+    """Return a customer's routing profile (or empty defaults = no restrictions)."""
+    supabase = _get_supabase()
+    try:
+        res = supabase.table("routing_profiles").select("*").eq("customer_id", customer_id).execute()
+    except Exception:
+        logger.exception("Failed to load routing profile for %s", customer_id)
+        raise HTTPException(status_code=500, detail="Unable to load routing profile.")
+    if res.data:
+        return res.data[0]
+    return {"customer_id": customer_id, **_EMPTY_PROFILE}
+
+
+def upsert_routing_profile(customer_id: str, profile: dict) -> dict:
+    """Create or update a customer's routing profile."""
+    supabase = _get_supabase()
+    payload = {
+        "customer_id": customer_id,
+        "service_zips": profile.get("service_zips") or [],
+        "accepted_route_types": profile.get("accepted_route_types") or [],
+        "accepted_home_sizes": profile.get("accepted_home_sizes") or [],
+        "min_job_value": int(profile.get("min_job_value") or 0),
+        "fmcsa_number": (profile.get("fmcsa_number") or None),
+    }
+    try:
+        res = supabase.table("routing_profiles").upsert(payload, on_conflict="customer_id").execute()
+        return (res.data or [payload])[0]
+    except Exception:
+        logger.exception("Failed to save routing profile for %s", customer_id)
+        raise HTTPException(status_code=500, detail="Unable to save routing profile.")
 
 
 def get_admin_analytics() -> dict:
