@@ -27,6 +27,28 @@ schema source of truth. That caused three concrete problems this layer fixes:
    `admin_analytics()` RPC and the two reconciliation views.
 4. `migrations/20260101000003_stripe_events.sql` — `stripe_events` idempotency
    ledger for the webhook handler (`unique(event_id)`).
+5. `migrations/20260101000005_widen_subscription_status_check.sql` — drop the
+   legacy narrow status CHECK so normalized statuses are accepted.
+6. `migrations/20260101000006_advisor_hardening.sql` — pin `set_updated_at`
+   search_path; `security_invoker` on the reconciliation views.
+7. `migrations/20260101000004_rls_hardening.sql` + `…0007_revoke_anon_grants.sql`
+   — enable RLS and lock down anon (see Security below). **Apply these last, and
+   only after the backend is on the service_role key.**
+
+## Security model (RLS)
+
+- **Backend** authenticates with the **service_role** key (`SUPABASE_KEY` in
+  `moving-leads-ai/.env`) and bypasses RLS — it performs all writes, admin reads,
+  and RPC calls.
+- **Frontend** uses the **anon** key (`VITE_SUPABASE_*`) and, after hardening, can
+  only `SELECT public.leads` (the dashboard). All other tables are RLS-denied and
+  removed from the anon/authenticated API grants.
+- The `assign_lead_to_customer` and `admin_analytics` RPCs are `EXECUTE`-revoked
+  from anon/authenticated and granted to `service_role` only.
+
+> ⚠️ `leads` is still anon-readable (PII) to keep the public dashboard working.
+> Recommended follow-up: put the dashboard behind auth and drop the
+> `leads_anon_select` policy + anon SELECT grant.
 
 ## Webhook reconciliation
 
