@@ -276,6 +276,9 @@ def list_lead_assignment_options(lead_id: str) -> dict:
                 "confidence": intelligence["confidence"],
                 "recommended_followup": intelligence["recommended_followup"],
                 "best_customer_fit_reason": intelligence["best_customer_fit_reason"],
+                "source": lead.get("source") or "public_form",
+                "captured_at": lead.get("created_at"),
+                "consent_tcpa": bool(lead.get("consent_tcpa")),
             },
             "recommendations": recommendations,
         }

@@ -47,6 +47,11 @@ schema source of truth. That caused three concrete problems this layer fixes:
     (service ZIPs, accepted route types / home sizes, min job value, FMCSA #).
     Assignment ranks by fit: mismatches are down-ranked with a clear reason
     (see `_profile_fit` in `app/services/admin_service.py`).
+11. `migrations/20260101000012_provenance_consent.sql` — lead provenance
+    (`source`, `source_url`, `source_ip`, `verified`) + **TCPA consent**
+    (`consent_tcpa`, `consent_text`, `consent_at`) captured at submission. Stays
+    on the RLS-locked `leads` table; the public form has a consent checkbox and
+    the Command Center shows consent / source / "Exclusive (sold once)".
 
 ## Security model (RLS)
 

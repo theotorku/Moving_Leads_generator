@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Moving Leads AI | Score a lead</title>
-  <link rel="stylesheet" href="/static/style.css?v=3">
+  <link rel="stylesheet" href="/static/style.css?v=4">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -95,6 +95,12 @@
             </select>
           </div>
         </div>
+
+        <label class="consent-row">
+          <input type="checkbox" id="consent">
+          <span id="consentText">I agree to be contacted by phone, text, and email about this move, including by
+            automated means. Consent is not a condition of purchase.</span>
+        </label>
 
         <button type="submit" id="submitBtn">Analyze lead</button>
       </form>
@@ -221,6 +227,11 @@
 
       const formData = new FormData(form);
       const payload = Object.fromEntries(formData.entries());
+      // Provenance + TCPA consent
+      const consentEl = document.getElementById('consent');
+      payload.consent_tcpa = consentEl.checked;
+      payload.consent_text = document.getElementById('consentText').textContent.trim();
+      payload.source_url = document.referrer || window.location.href;
 
       try {
         const res = await fetch('/leads/score', {

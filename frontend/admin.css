@@ -131,6 +131,11 @@ main { flex: 1; padding: 18px 20px; max-width: 1500px; width: 100%; margin: 0 au
 .badge-included { background: var(--success-bg); color: var(--success); }
 .badge-value { background: var(--violet-bg); color: var(--violet); }
 .badge-blocked { background: var(--danger-bg); color: var(--danger); }
+.badge-ok { background: var(--success-bg); color: var(--success); }
+.badge-warn { background: var(--warn-bg); color: var(--warn); }
+
+.assign-prov { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; }
+.prov-meta { font-size: 11.5px; color: var(--muted); }
 
 /* ---- assignment panel ---- */
 .assign-col { position: sticky; top: 70px; }

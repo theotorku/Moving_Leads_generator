@@ -87,6 +87,11 @@ class RawLead(BaseModel):
     budget: Annotated[int, Field(gt=0, le=50000)]
     urgency: LeadUrgency
 
+    # Provenance / TCPA consent captured at submission (optional)
+    consent_tcpa: bool = False
+    consent_text: Optional[str] = None
+    source_url: Optional[str] = None
+
     @field_validator("phone")
     @classmethod
     def phone_must_include_digits(cls, value: str) -> str:

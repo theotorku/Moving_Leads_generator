@@ -1,4 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, HTTPException, Request
 import logging
 from ..models import LeadStatus, RawLead, ScoreResponse
 
@@ -10,7 +12,7 @@ from ..ai.scorer import analyze_lead, normalize_lead_intelligence
 from ..ai.calibration import calibrate
 
 @router.post("/leads/score", response_model=ScoreResponse)
-async def score_lead(lead: RawLead):
+async def score_lead(lead: RawLead, request: Request):
     ai_result = await analyze_lead(lead)
     scored_lead_data = normalize_lead_intelligence(lead, ai_result)
 
@@ -36,7 +38,24 @@ async def score_lead(lead: RawLead):
     except Exception:
         logger.exception("Calibration skipped")
 
-    stored_lead_data = {**scored_lead_data, "status": LeadStatus.available.value}
+    # Provenance + TCPA consent. source_ip/consent records persist on `leads`,
+    # which is RLS-locked to service_role (never exposed to the browser key).
+    forwarded = request.headers.get("x-forwarded-for", "")
+    source_ip = forwarded.split(",")[0].strip() if forwarded else (
+        request.client.host if request.client else None
+    )
+    scored_lead_data["source_url"] = (
+        scored_lead_data.get("source_url") or request.headers.get("referer")
+    )
+    consented = bool(scored_lead_data.get("consent_tcpa"))
+    stored_lead_data = {
+        **scored_lead_data,
+        "status": LeadStatus.available.value,
+        "source": "public_form",
+        "source_ip": source_ip,
+        "consent_at": datetime.now(timezone.utc).isoformat() if consented else None,
+        "verified": False,
+    }
 
     # Persist to Supabase. We no longer silently swallow failures: a genuine
     # insert error (e.g. schema drift) fails loudly so it can't masquerade as

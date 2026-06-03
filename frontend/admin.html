@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Command Center — Moving Leads AI</title>
-    <link rel="stylesheet" href="/static/admin.css?v=6">
+    <link rel="stylesheet" href="/static/admin.css?v=7">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -412,6 +412,12 @@
                         <span>${money(lead.estimated_job_value)} value</span>
                         <span class="cap">${esc(lead.route_type)} · ${esc(lead.move_complexity)}</span>
                         <span class="badge badge-risk-${riskClass(lead.fraud_risk)}">${esc(lead.fraud_risk)} risk</span>
+                    </div>
+                    <div class="assign-prov">
+                        ${lead.consent_tcpa ? '<span class="badge badge-ok">TCPA consent ✓</span>'
+                            : '<span class="badge badge-warn">No consent</span>'}
+                        <span class="badge badge-included">Exclusive</span>
+                        <span class="prov-meta">${esc(lead.source || '—')} · ${fmtDate(lead.captured_at)}</span>
                     </div>
                     <div class="assign-ainote">
                         <span class="ai-label">AI fit · ${lead.confidence ?? '—'}% confidence</span>

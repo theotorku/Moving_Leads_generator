@@ -182,6 +182,41 @@ def test_score_lead_surfaces_persistence_failure():
     assert response.status_code == 503
 
 
+def test_score_lead_captures_consent_and_provenance():
+    payload = {
+        "full_name": "Consent Lead",
+        "email": "consent@example.com",
+        "phone": "+1 (555) 123-4567",
+        "move_date": "2026-10-01",
+        "origin_zip": "10001",
+        "destination_zip": "90210",
+        "home_size": "2_bedroom",
+        "budget": 5000,
+        "urgency": "this_month",
+        "consent_tcpa": True,
+        "consent_text": "I agree to be contacted.",
+        "source_url": "https://ref.example/landing",
+    }
+
+    mock_supabase = MagicMock()
+    mock_supabase.table.return_value.insert.return_value.execute.return_value = SimpleNamespace(data=[])
+
+    with (
+        patch("app.routes.leads.analyze_lead", AsyncMock(return_value={"score": 88, "reasoning": "ok"})),
+        patch("app.routes.leads.get_supabase_client", return_value=mock_supabase),
+    ):
+        response = client.post("/leads/score", json=payload)
+
+    assert response.status_code == 200
+    inserted = mock_supabase.table.return_value.insert.call_args.args[0]
+    assert inserted["consent_tcpa"] is True
+    assert inserted["consent_at"] is not None          # stamped when consented
+    assert inserted["source"] == "public_form"
+    assert inserted["source_ip"]                        # captured server-side
+    assert inserted["source_url"] == "https://ref.example/landing"
+    assert response.json()["consent_tcpa"] is True
+
+
 def test_register_customer_rejects_invalid_tier():
     response = client.post(
         "/customers/register",
