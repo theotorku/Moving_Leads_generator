@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # Populated from repo secrets; the live-DB job is skipped when unset.
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Unit/API tests (mocked)
+        run: python -m pytest -q
+
+      # Schema-dependent smoke tests against a real Supabase project. Set the
+      # SUPABASE_* / OPENAI / ADMIN secrets (ideally a dedicated test project or
+      # branch) to enable. Skipped automatically when secrets are absent.
+      - name: Supabase smoke tests (live DB)
+        if: env.SUPABASE_URL != ''
+        env:
+          RUN_SUPABASE_IT: "1"
+        run: python -m pytest -q tests/integration

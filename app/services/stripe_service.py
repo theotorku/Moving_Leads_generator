@@ -7,6 +7,12 @@ from ..config import get_settings
 
 logger = logging.getLogger(__name__)
 
+# Bound Stripe network time: the per-read subscription sync runs inline in
+# assignment-options/customer endpoints, so a slow/hung Stripe call would block
+# the request worker. Cap retries; the durable fix for the N+1 is to set
+# RECONCILE_VIA_WEBHOOK=true once the webhook endpoint is live.
+stripe.max_network_retries = 1
+
 
 def _stripe_api_key() -> str | None:
     settings = get_settings()

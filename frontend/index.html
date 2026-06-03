@@ -101,7 +101,7 @@
 
       <div id="loader" class="loader hidden" aria-live="polite">
         <div class="spinner" aria-hidden="true"></div>
-        <p>Scoring lead…</p>
+        <p id="loaderText">Scoring lead…</p>
       </div>
 
       <div id="result" class="result-card hidden" aria-live="polite">
@@ -149,8 +149,21 @@
     const followupText = document.getElementById('followupText');
     const statusMessage = document.getElementById('statusMessage');
     const resetBtn = document.getElementById('resetBtn');
+    const loaderText = document.getElementById('loaderText');
     const LOW_SCORE_THRESHOLD = 50;
     const HIGH_SCORE_THRESHOLD = 80;
+
+    // AI scoring can take 10-20s; reassure the user instead of looking stuck.
+    let scoringTimer = null;
+    function startScoringTimer() {
+      loaderText.textContent = 'Scoring lead…';
+      scoringTimer = setTimeout(() => {
+        loaderText.textContent = 'Still scoring — this can take a few more seconds…';
+      }, 12000);
+    }
+    function stopScoringTimer() {
+      if (scoringTimer) { clearTimeout(scoringTimer); scoringTimer = null; }
+    }
 
     function setStatus(message, tone = 'info') {
       statusMessage.textContent = message;
@@ -176,6 +189,8 @@
 
     function resetExperience() {
       form.reset();
+      stopScoringTimer();
+      loaderText.textContent = 'Scoring lead…';
       setLoadingState(false);
       resultCard.classList.add('hidden');
       form.classList.remove('hidden');
@@ -199,6 +214,7 @@
 
       setStatus('Submitting lead details for scoring…');
       setLoadingState(true);
+      startScoringTimer();
 
       const formData = new FormData(form);
       const payload = Object.fromEntries(formData.entries());
@@ -224,6 +240,7 @@
           throw new Error(data.detail || 'Something went wrong while scoring the lead.');
         }
 
+        stopScoringTimer();
         loader.classList.add('hidden');
         resultCard.classList.remove('hidden');
         scoreValue.textContent = data.score;
@@ -238,6 +255,7 @@
         setStatus('Lead analyzed successfully.' + savedNote, data.persisted === false ? 'warn' : 'success');
       } catch (err) {
         console.error(err);
+        stopScoringTimer();
         setStatus(err.message || 'Something went wrong. Please try again.', 'error');
         setLoadingState(false);
       }

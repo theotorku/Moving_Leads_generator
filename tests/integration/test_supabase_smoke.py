@@ -84,3 +84,56 @@ def test_leads_table_accepts_intelligence_columns():
         assert inserted.data, "insert returned no row"
     finally:
         client.table("leads").delete().eq("email", marker_email).execute()
+
+
+def test_assignment_options_returns_recommendations():
+    """Command Center lead-selection path: selecting a lead must return buyer
+    recommendations with the fields the side panel renders. Reproduces the flow
+    that failed in browser E2E (panel "Failed to fetch").
+    """
+    import base64
+
+    from fastapi.testclient import TestClient
+
+    from app.config import get_settings
+    from app.main import app
+
+    client = _client()
+    marker = uuid.uuid4().hex[:8]
+
+    customer = client.table("customers").insert({
+        "company_name": f"IT Buyer {marker}",
+        "email": f"it-buyer-{marker}@example.com",
+    }).execute().data[0]
+    client.table("subscriptions").insert({
+        "customer_id": customer["id"], "tier": "starter", "status": "active",
+        "leads_included": 30, "leads_used": 0,
+    }).execute()
+    lead = client.table("leads").insert({
+        "full_name": "IT Assign Lead", "email": f"it-assign-{marker}@example.com",
+        "phone": "+1 555-0100", "move_date": "2026-09-01", "origin_zip": "10001",
+        "destination_zip": "90210", "home_size": "2_bedroom", "budget": 5000,
+        "urgency": "this_month", "score": 80, "reasoning": "it", "status": "available",
+    }).execute().data[0]
+
+    s = get_settings()
+    auth = "Basic " + base64.b64encode(
+        f"{s.admin_username}:{s.admin_password.get_secret_value()}".encode()
+    ).decode()
+
+    try:
+        api = TestClient(app)
+        res = api.get(
+            f"/admin/leads/{lead['id']}/assignment-options",
+            headers={"Authorization": auth},
+        )
+        assert res.status_code == 200, res.text
+        data = res.json()
+        assert data["lead"]["id"] == lead["id"]
+        best = next(r for r in data["recommendations"] if r["customer_id"] == customer["id"])
+        for key in ("priority_score", "projected_price", "purchase_type", "can_assign", "fit_reason"):
+            assert key in best, f"recommendation missing {key}"
+        assert best["can_assign"] is True
+    finally:
+        client.table("leads").delete().eq("id", lead["id"]).execute()
+        client.table("customers").delete().eq("id", customer["id"]).execute()
