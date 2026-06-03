@@ -86,6 +86,7 @@ main { flex: 1; padding: 18px 20px; max-width: 1500px; width: 100%; margin: 0 au
 
 .col-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 12px; }
 .col-head h2 { margin: 0; font-size: 16px; }
+.col-sub { margin: 0; color: var(--muted); font-size: 13px; }
 .filters { display: flex; gap: 8px; }
 .filters select, .filters input { padding: 7px 9px; border: 1px solid var(--border); border-radius: var(--radius-sm); font: inherit; font-size: 13px; }
 .filters input { width: 110px; }

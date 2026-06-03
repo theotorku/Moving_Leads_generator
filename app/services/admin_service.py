@@ -486,6 +486,17 @@ def get_conversion_analytics() -> dict:
         raise HTTPException(status_code=500, detail="Unable to load conversion analytics.")
 
 
+def get_lead_sources() -> list:
+    """Per-channel acquisition rollup from the leads_by_source() RPC —
+    answers "where are the leads coming from" (volume, quality, conversion)."""
+    supabase = _get_supabase()
+    try:
+        return (supabase.rpc("leads_by_source", {}).execute()).data or []
+    except Exception:
+        logger.exception("Failed to load lead sources")
+        raise HTTPException(status_code=500, detail="Unable to load lead sources.")
+
+
 _EMPTY_PROFILE = {
     "service_zips": [], "accepted_route_types": [], "accepted_home_sizes": [],
     "min_job_value": 0, "fmcsa_number": None,

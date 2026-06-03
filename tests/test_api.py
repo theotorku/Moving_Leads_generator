@@ -608,6 +608,26 @@ def test_conversion_analytics_endpoint():
     assert body["cost_per_booked_move"] == 12.0
 
 
+def test_lead_sources_endpoint():
+    mock_supabase = _rpc_supabase(returns=[
+        {"channel": "google_ads", "leads": 42, "avg_score": 78, "avg_booking_probability": 70,
+         "sold": 12, "booked": 8, "disputed": 1, "revenue": 1840, "booked_revenue": 24000, "book_rate": 19.0},
+        {"channel": "direct", "leads": 7, "avg_score": 81, "avg_booking_probability": 75,
+         "sold": 0, "booked": 0, "disputed": 0, "revenue": 0, "booked_revenue": 0, "book_rate": 0.0},
+    ])
+    with patch("app.services.admin_service.get_supabase_client", return_value=mock_supabase):
+        res = client.get("/admin/sources", headers=auth_headers())
+    assert res.status_code == 200
+    sources = res.json()["sources"]
+    assert sources[0]["channel"] == "google_ads"
+    assert sources[0]["leads"] == 42
+    assert sources[0]["book_rate"] == 19.0
+
+
+def test_lead_sources_requires_admin():
+    assert client.get("/admin/sources").status_code == 401
+
+
 # --- Stripe webhook reconciliation ------------------------------------------
 
 import stripe  # noqa: E402

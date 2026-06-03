@@ -61,6 +61,11 @@ schema source of truth. That caused three concrete problems this layer fixes:
     on `leads`: `source_channel`, `source_medium`, `source_campaign`,
     `source_referrer`, `source_partner`, and `landing_page`. The public form
     captures UTM/partner params and the Command Center surfaces source/campaign.
+14. `migrations/20260101000015_leads_by_source.sql` — `leads_by_source()` RPC: a
+    per-channel rollup (leads, avg score, avg booking %, sold, booked, disputed,
+    revenue, booked move value, book_rate) joining `leads` attribution to
+    `lead_purchases` outcomes. Powers `GET /admin/sources` and the Command
+    Center "Sources" view — *where are the leads coming from*. service_role only.
 
 ## Security model (RLS)
 

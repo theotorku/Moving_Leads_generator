@@ -11,6 +11,7 @@ from ..services.admin_service import (
     assign_lead_to_customer,
     get_admin_analytics,
     get_conversion_analytics,
+    get_lead_sources,
     get_routing_profile,
     list_lead_assignment_options,
     list_customers_for_admin,
@@ -96,6 +97,11 @@ async def get_analytics(admin: str = Depends(verify_admin)):
 async def get_conversion(admin: str = Depends(verify_admin)):
     """Get the sold->booked funnel and cost per booked move."""
     return get_conversion_analytics()
+
+@router.get("/admin/sources")
+async def get_sources(admin: str = Depends(verify_admin)):
+    """Per-channel acquisition rollup — where leads come from (volume/quality/conversion)."""
+    return {"sources": get_lead_sources()}
 
 @router.post("/admin/purchases/{purchase_id}/outcome")
 async def set_purchase_outcome(

@@ -214,6 +214,7 @@ pytest
 ### Admin Endpoints (requires authentication)
 - `GET /admin/analytics` - Revenue and usage metrics
 - `GET /admin/conversion` - Conversion funnel + cost per booked move
+- `GET /admin/sources` - Per-channel acquisition rollup (volume, quality, conversion, revenue) — *where leads come from*
 - `GET /admin/leads` - List all leads (with filters)
 - `GET /admin/leads/{id}/assignment-options` - Suggest the best-fit customer targets for a lead (routing fit + billing health)
 - `POST /admin/leads/{id}/assign` - Assign lead to customer

@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Command Center — Moving Leads AI</title>
-    <link rel="stylesheet" href="/static/admin.css?v=7">
+    <link rel="stylesheet" href="/static/admin.css?v=8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -56,6 +56,10 @@
                 <button class="nav-btn" data-view="customers" title="Customers">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     Customers
+                </button>
+                <button class="nav-btn" data-view="sources" title="Sources">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                    Sources
                 </button>
                 <button class="nav-btn ghost" id="refresh-btn" title="Refresh">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
@@ -135,6 +139,34 @@
                         </thead>
                         <tbody id="customers-tbody">
                             <tr><td colspan="6" class="grid-loading">Loading…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Sources view -->
+            <section id="sources-view" class="view">
+                <div class="col-head">
+                    <h2>Lead sources</h2>
+                    <p class="col-sub">Where leads come from — volume, quality, and what each channel converts to.</p>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-grid">
+                        <thead>
+                            <tr>
+                                <th>Channel</th>
+                                <th>Leads</th>
+                                <th>Avg score</th>
+                                <th>Avg booking</th>
+                                <th>Sold</th>
+                                <th>Booked</th>
+                                <th>Book rate</th>
+                                <th>Disputed</th>
+                                <th>Revenue</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sources-tbody">
+                            <tr><td colspan="9" class="grid-loading">Loading…</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -266,7 +298,35 @@
 
         /* ---- data loads ---- */
         async function loadDashboard() {
-            await Promise.all([loadAnalytics(), loadConversion(), loadCustomers().then(loadLeads)]);
+            await Promise.all([loadAnalytics(), loadConversion(), loadSources(), loadCustomers().then(loadLeads)]);
+        }
+
+        async function loadSources() {
+            const tbody = document.getElementById('sources-tbody');
+            try {
+                const data = await (await fetchAdmin('/admin/sources')).json();
+                const rows = data.sources || [];
+                if (!rows.length) {
+                    tbody.innerHTML = '<tr><td colspan="9" class="grid-empty">No leads captured yet.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = rows.map(s => `
+                    <tr>
+                        <td><span class="badge badge-source">${esc(s.channel || 'unknown')}</span></td>
+                        <td>${s.leads ?? 0}</td>
+                        <td>${s.avg_score ?? '—'}</td>
+                        <td>${s.avg_booking_probability == null ? '—' : s.avg_booking_probability + '%'}</td>
+                        <td>${s.sold ?? 0}</td>
+                        <td>${s.booked ?? 0}</td>
+                        <td>${s.book_rate == null ? '—' : s.book_rate + '%'}</td>
+                        <td>${s.disputed ?? 0}</td>
+                        <td>${money(s.revenue || 0)}</td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error('sources load failed', err);
+                tbody.innerHTML = '<tr><td colspan="9" class="grid-empty">Failed to load sources.</td></tr>';
+            }
         }
 
         async function loadConversion() {

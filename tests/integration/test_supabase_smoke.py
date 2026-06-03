@@ -139,3 +139,19 @@ def test_assignment_options_returns_recommendations():
     finally:
         client.table("leads").delete().eq("id", lead["id"]).execute()
         client.table("customers").delete().eq("id", customer["id"]).execute()
+
+
+def test_leads_by_source_rpc_returns_per_channel_rows():
+    """The leads_by_source() rollup must exist and return per-channel objects with
+    the fields the admin Sources panel renders (schema-drift guard for migration
+    14/15: attribution columns + the rollup RPC)."""
+    client = _client()
+    result = client.rpc("leads_by_source", {}).execute()
+    rows = result.data
+    assert isinstance(rows, list), "leads_by_source() should return a JSON array"
+    for row in rows:
+        for key in (
+            "channel", "leads", "avg_score", "avg_booking_probability",
+            "sold", "booked", "disputed", "revenue", "book_rate",
+        ):
+            assert key in row, f"leads_by_source() row missing key: {key}"
