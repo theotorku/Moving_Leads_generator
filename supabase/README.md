@@ -40,7 +40,7 @@ schema source of truth. That caused three concrete problems this layer fixes:
 - **Backend** authenticates with the **service_role** key (`SUPABASE_KEY` in
   `moving-leads-ai/.env`) and bypasses RLS — it performs all writes, admin reads,
   and RPC calls.
-- **The UI is the FastAPI-served vanilla frontend** in `app/frontend/` (`/`,
+- **The UI is the FastAPI-served vanilla frontend** in `frontend/` (`/`,
   `/admin`, `/portal`); it calls backend endpoints only. No browser client reads
   Supabase directly. (The separate React app that did was retired.)
 - The `assign_lead_to_customer` and `admin_analytics` RPCs are `EXECUTE`-revoked

@@ -199,6 +199,7 @@
 
     function resetExperience() {
       form.reset();
+      setLoadingState(false);
       resultCard.classList.add('hidden');
       form.classList.remove('hidden');
       scoreValue.textContent = '--';
