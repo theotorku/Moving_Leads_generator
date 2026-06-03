@@ -16,13 +16,6 @@ def _env_secret_or_none(env_name: str) -> SecretStr | None:
     return SecretStr(value) if value else None
 
 
-def _env_list(env_name: str, default: list[str]) -> list[str]:
-    raw = os.getenv(env_name)
-    if not raw:
-        return default
-    return [item.strip() for item in raw.split(",") if item.strip()]
-
-
 class Settings(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -42,11 +35,6 @@ class Settings(BaseModel):
     admin_username: str = Field(default_factory=lambda: os.getenv("ADMIN_USERNAME", DEFAULT_ADMIN_USERNAME))
     admin_password: SecretStr = Field(
         default_factory=lambda: SecretStr(os.getenv("ADMIN_PASSWORD", DEFAULT_ADMIN_PASSWORD))
-    )
-    # Browser origins allowed to call the API (comma-separated env var).
-    # Defaults to the Vite dev server.
-    cors_allow_origins: list[str] = Field(
-        default_factory=lambda: _env_list("CORS_ALLOW_ORIGINS", ["http://localhost:5173"])
     )
 
     def startup_messages(self) -> tuple[list[str], list[str]]:

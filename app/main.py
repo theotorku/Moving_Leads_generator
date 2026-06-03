@@ -3,7 +3,6 @@ import logging
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -32,15 +31,6 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Moving Leads AI", lifespan=lifespan)
-
-# Allow the React dev server (and any configured origins) to call the API.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=get_settings().cors_allow_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 from .routes import leads, customers, admin as admin_routes, webhooks
 app.include_router(leads.router)

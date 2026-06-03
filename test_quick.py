@@ -27,8 +27,8 @@ def test_config():
     from app.config import get_settings
 
     settings = get_settings()
-    assert isinstance(settings.cors_allow_origins, list)
-    assert settings.cors_allow_origins  # always has at least the default origin
+    assert isinstance(settings.admin_username, str)
+    assert settings.admin_username  # always set (defaults to "admin")
 
 
 def test_models():
