@@ -8,6 +8,12 @@ An AI-powered lead generation and monetization platform for the moving industry,
 - **Structured Lead Intelligence** - OpenAI returns score, booking probability, job value, route type, complexity, fraud risk, confidence, and follow-up guidance
 - **Smart Lead Capture** - Modern, responsive form with real-time validation
 - **Automated Reasoning** - AI provides detailed scoring rationale
+- **Outcome-Calibrated Scores** - A new lead's AI booking probability is blended toward the *real* book rate of its route+urgency segment (shrinkage toward the AI prior), and high-dispute segments bump fraud risk — scores get sharper as outcomes accrue
+- **Lead Provenance & TCPA Consent** - Every lead records its source, source URL, capture IP (first `X-Forwarded-For` hop), and explicit TCPA consent (text + timestamp) — the compliance layer for selling exclusive leads
+
+### Feedback Loop & Routing
+- **Outcome Tracking** - Record each sold lead's progress (contacted → appointment → booked, or lost/disputed/refunded) and surface **cost per booked move** and conversion analytics
+- **Buyer Routing Profiles** - Per-customer fit rules (service ZIPs/prefixes, accepted route types & home sizes, minimum job value, FMCSA #); assignment ranks buyers by fit and down-ranks mismatches with a clear reason
 
 ### Monetization System
 - **Hybrid Revenue Model** - Base subscription + pay-per-lead overage
@@ -19,11 +25,12 @@ An AI-powered lead generation and monetization platform for the moving industry,
 - **Stripe Integration** - Automated subscription and payment processing
 - **Usage Tracking** - Real-time lead allocation monitoring
 
-### Admin Dashboard
-- **Analytics Overview** - MRR, customer count, lead metrics
+### Admin Dashboard ("Command Center")
+- **Analytics Overview** - MRR, customer count, lead metrics, plus conversion + cost-per-booked-move
 - **Lead Management** - View, filter, and assign leads to customers
-- **AI-Guided Assignment** - Rank customers by lead intelligence, assignment readiness, remaining capacity, and billing health
-- **Customer Management** - Track subscriptions and usage
+- **AI-Guided Assignment** - Rank customers by lead intelligence, routing-profile fit, assignment readiness, remaining capacity, and billing health; the assignment panel shows TCPA consent / source / "Exclusive (sold once)"
+- **Outcome Tracker** - Mark a purchased lead's outcome to feed the calibration loop
+- **Customer Management** - Track subscriptions and usage; edit each buyer's routing profile; register new customers in-dashboard
 - **Secure Authentication** - Basic HTTP auth for admin routes
 
 ### Customer Experience
@@ -32,7 +39,7 @@ An AI-powered lead generation and monetization platform for the moving industry,
 ### Technical Stack
 - **Backend:** FastAPI (Python 3.11+)
 - **Database:** Supabase (PostgreSQL)
-- **AI:** OpenAI GPT-3.5/4
+- **AI:** OpenAI `gpt-4o-mini` (structured JSON), with a deterministic heuristic fallback
 - **Payments:** Stripe
 - **Frontend:** Vanilla HTML/CSS/JS with glassmorphism design
 - **Deployment:** Docker ready
@@ -53,9 +60,10 @@ Moving_Leads_generator/
 │   │   ├── admin.py             # Admin dashboard API
 │   │   └── webhooks.py          # Stripe webhook endpoint
 │   ├── ai/
-│   │   └── scorer.py            # OpenAI lead analysis
+│   │   ├── scorer.py            # OpenAI lead analysis
+│   │   └── calibration.py       # Blend AI scores with real segment outcomes
 │   └── services/
-│       ├── admin_service.py     # Lead assignment (RPC) & analytics
+│       ├── admin_service.py     # Assignment (RPC + routing fit), analytics, outcomes
 │       ├── customer_service.py  # Registration & portal
 │       ├── stripe_service.py    # Stripe + pricing tiers
 │       └── webhook_service.py   # Webhook verification & reconciliation
@@ -137,9 +145,12 @@ Moving_Leads_generator/
    supabase db push
    ```
    Or paste each migration, in order, into the Supabase SQL Editor. This creates
-   `leads`, `customers`, `subscriptions`, `lead_purchases`, `pricing_tiers`, and
-   `stripe_events`, the `assign_lead_to_customer` / `admin_analytics` RPCs, the
-   reconciliation views, and enables RLS.
+   `leads` (with provenance + consent columns), `customers`, `subscriptions`,
+   `lead_purchases` (with outcome columns), `pricing_tiers`, `routing_profiles`, and
+   `stripe_events`; the `assign_lead_to_customer` / `admin_analytics` /
+   `record_lead_outcome` / `conversion_analytics` / `lead_segment_stats` RPCs; the
+   reconciliation views; and enables RLS. See `supabase/README.md` for the full
+   ordered list (migrations 0–12).
 
 6. **Run the application:**
    ```bash
@@ -185,10 +196,14 @@ pytest
 
 ### Admin Endpoints (requires authentication)
 - `GET /admin/analytics` - Revenue and usage metrics
+- `GET /admin/conversion` - Conversion funnel + cost per booked move
 - `GET /admin/leads` - List all leads (with filters)
-- `GET /admin/leads/{id}/assignment-options` - Suggest the safest customer assignment targets for a lead
+- `GET /admin/leads/{id}/assignment-options` - Suggest the best-fit customer targets for a lead (routing fit + billing health)
 - `POST /admin/leads/{id}/assign` - Assign lead to customer
+- `POST /admin/purchases/{id}/outcome` - Record a purchased lead's outcome (feeds calibration)
 - `GET /admin/customers` - List all customers
+- `GET /admin/customers/{id}/routing-profile` - Read a buyer's routing profile
+- `PUT /admin/customers/{id}/routing-profile` - Create/update a buyer's routing profile
 
 ## 💰 Revenue Model
 
@@ -221,6 +236,10 @@ The platform uses a hybrid monetization strategy:
   transaction with row locking + a `unique(lead_id)` guard, preventing duplicate or
   partial sales. Overage charges are linked to Stripe and surfaced in the
   `billing_reconciliation` views.
+- **Provenance & TCPA consent** - each lead stores its source, source URL, capture
+  IP, and explicit consent (text + timestamp). The public form requires a consent
+  checkbox and the Command Center surfaces consent status before a buyer purchases —
+  the audit trail for selling contactable, exclusive leads.
 - Startup validation with environment-based configuration warnings
 - Basic HTTP authentication for admin routes (replace the default credentials)
 - Secrets via `SecretStr`, excluded from version control
