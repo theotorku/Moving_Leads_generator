@@ -133,6 +133,18 @@ main { flex: 1; padding: 18px 20px; max-width: 1500px; width: 100%; margin: 0 au
 .badge-blocked { background: var(--danger-bg); color: var(--danger); }
 .badge-ok { background: var(--success-bg); color: var(--success); }
 .badge-warn { background: var(--warn-bg); color: var(--warn); }
+.badge-source { background: #eef3fe; color: var(--accent-strong); }
+
+.source-cell { display: grid; gap: 2px; align-items: start; }
+.source-sub {
+  color: var(--muted);
+  font-size: 11.5px;
+  margin-top: 2px;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .assign-prov { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; }
 .prov-meta { font-size: 11.5px; color: var(--muted); }

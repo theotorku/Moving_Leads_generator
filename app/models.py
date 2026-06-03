@@ -69,6 +69,23 @@ class MoveComplexity(str, Enum):
     high = "high"
 
 
+class LeadSourceChannel(str, Enum):
+    direct = "direct"
+    organic = "organic"
+    google_lsa = "google_lsa"
+    google_ads = "google_ads"
+    yelp = "yelp"
+    angi = "angi"
+    thumbtack = "thumbtack"
+    realtor_partner = "realtor_partner"
+    referral_partner = "referral_partner"
+    email = "email"
+    social = "social"
+    webhook = "webhook"
+    manual = "manual"
+    unknown = "unknown"
+
+
 def _require_phone_digits(value: Optional[str]) -> Optional[str]:
     if value and not any(character.isdigit() for character in value):
         raise ValueError("Phone number must include at least one digit.")
@@ -91,6 +108,29 @@ class RawLead(BaseModel):
     consent_tcpa: bool = False
     consent_text: Optional[str] = None
     source_url: Optional[str] = None
+    source_channel: Optional[LeadSourceChannel] = None
+    source_medium: Optional[str] = None
+    source_campaign: Optional[str] = None
+    source_referrer: Optional[str] = None
+    source_partner: Optional[str] = None
+    landing_page: Optional[str] = None
+
+    @field_validator(
+        "consent_text",
+        "source_url",
+        "source_channel",
+        "source_medium",
+        "source_campaign",
+        "source_referrer",
+        "source_partner",
+        "landing_page",
+        mode="before",
+    )
+    @classmethod
+    def empty_provenance_value_to_none(cls, value):
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
 
     @field_validator("phone")
     @classmethod

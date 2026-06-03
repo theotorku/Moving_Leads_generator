@@ -231,7 +231,14 @@
       const consentEl = document.getElementById('consent');
       payload.consent_tcpa = consentEl.checked;
       payload.consent_text = document.getElementById('consentText').textContent.trim();
-      payload.source_url = document.referrer || window.location.href;
+      const params = new URLSearchParams(window.location.search);
+      payload.source_url = window.location.href;
+      payload.landing_page = window.location.href;
+      payload.source_referrer = document.referrer || '';
+      payload.source_channel = params.get('source_channel') || params.get('utm_source') || params.get('source') || params.get('src') || '';
+      payload.source_medium = params.get('utm_medium') || params.get('medium') || '';
+      payload.source_campaign = params.get('utm_campaign') || params.get('campaign') || '';
+      payload.source_partner = params.get('partner') || params.get('partner_id') || params.get('affiliate') || params.get('affiliate_id') || '';
 
       try {
         const res = await fetch('/leads/score', {

@@ -9,7 +9,7 @@ An AI-powered lead generation and monetization platform for the moving industry,
 - **Smart Lead Capture** - Modern, responsive form with real-time validation
 - **Automated Reasoning** - AI provides detailed scoring rationale
 - **Outcome-Calibrated Scores** - A new lead's AI booking probability is blended toward the *real* book rate of its route+urgency segment (shrinkage toward the AI prior), and high-dispute segments bump fraud risk — scores get sharper as outcomes accrue
-- **Lead Provenance & TCPA Consent** - Every lead records its source, source URL, capture IP (first `X-Forwarded-For` hop), and explicit TCPA consent (text + timestamp) — the compliance layer for selling exclusive leads
+- **Lead Attribution, Provenance & TCPA Consent** - Every lead records channel, medium, campaign, partner/referrer, landing page, source URL, capture IP (first `X-Forwarded-For` hop), and explicit TCPA consent (text + timestamp) — the compliance layer for selling exclusive leads
 
 ### Feedback Loop & Routing
 - **Outcome Tracking** - Record each sold lead's progress (contacted → appointment → booked, or lost/disputed/refunded) and surface **cost per booked move** and conversion analytics
@@ -27,7 +27,7 @@ An AI-powered lead generation and monetization platform for the moving industry,
 
 ### Admin Dashboard ("Command Center")
 - **Analytics Overview** - MRR, customer count, lead metrics, plus conversion + cost-per-booked-move
-- **Lead Management** - View, filter, and assign leads to customers
+- **Lead Management** - View, filter, and assign leads to customers, with source channel/campaign visible in the lead grid and assignment panel
 - **AI-Guided Assignment** - Rank customers by lead intelligence, routing-profile fit, assignment readiness, remaining capacity, and billing health; the assignment panel shows TCPA consent / source / "Exclusive (sold once)"
 - **Outcome Tracker** - Mark a purchased lead's outcome to feed the calibration loop
 - **Customer Management** - Track subscriptions and usage; edit each buyer's routing profile; register new customers in-dashboard
@@ -150,7 +150,24 @@ Moving_Leads_generator/
    `stripe_events`; the `assign_lead_to_customer` / `admin_analytics` /
    `record_lead_outcome` / `conversion_analytics` / `lead_segment_stats` RPCs; the
    reconciliation views; and enables RLS. See `supabase/README.md` for the full
-   ordered list (migrations 0–12).
+   ordered list (migrations 0-14).
+
+### Lead Attribution
+
+The public lead form captures acquisition data from the page URL and sends it
+with each scored lead. Use standard tracking parameters on campaigns and partner
+links:
+
+```text
+/?utm_source=google_lsa&utm_medium=cpc&utm_campaign=dallas_summer&partner=realtor42
+```
+
+Supported fields are `utm_source`/`source`/`src`/`lead_source`,
+`utm_medium`/`medium`, `utm_campaign`/`campaign`, and
+`partner`/`partner_id`/`affiliate`/`affiliate_id`. The backend normalizes common
+sources into channels such as `direct`, `organic`, `google_lsa`, `google_ads`,
+`yelp`, `angi`, `thumbtack`, `realtor_partner`, `referral_partner`, `email`,
+`social`, `webhook`, and `manual`.
 
 6. **Run the application:**
    ```bash
@@ -236,9 +253,10 @@ The platform uses a hybrid monetization strategy:
   transaction with row locking + a `unique(lead_id)` guard, preventing duplicate or
   partial sales. Overage charges are linked to Stripe and surfaced in the
   `billing_reconciliation` views.
-- **Provenance & TCPA consent** - each lead stores its source, source URL, capture
-  IP, and explicit consent (text + timestamp). The public form requires a consent
-  checkbox and the Command Center surfaces consent status before a buyer purchases —
+- **Attribution, provenance & TCPA consent** - each lead stores source channel,
+  medium, campaign, partner/referrer, landing page, source URL, capture IP, and
+  explicit consent (text + timestamp). The public form requires a consent checkbox
+  and the Command Center surfaces consent status/source before a buyer purchases -
   the audit trail for selling contactable, exclusive leads.
 - Startup validation with environment-based configuration warnings
 - Basic HTTP authentication for admin routes (replace the default credentials)

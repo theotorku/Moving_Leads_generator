@@ -57,6 +57,10 @@ schema source of truth. That caused three concrete problems this layer fixes:
     Assignment accepts `trialing` subs, so a trial-only platform previously read
     as `active_subscriptions: 0` (looked empty). `active_subscriptions` / MRR stay
     paying-only; the new count matches what assignment will actually accept.
+13. `migrations/20260101000014_lead_attribution_fields.sql` — attribution fields
+    on `leads`: `source_channel`, `source_medium`, `source_campaign`,
+    `source_referrer`, `source_partner`, and `landing_page`. The public form
+    captures UTM/partner params and the Command Center surfaces source/campaign.
 
 ## Security model (RLS)
 

@@ -90,13 +90,14 @@
                                         <th>Value</th>
                                         <th>Route</th>
                                         <th>Risk</th>
+                                        <th>Source</th>
                                         <th>Status</th>
                                         <th>Assigned</th>
                                         <th>Created</th>
                                     </tr>
                                 </thead>
                                 <tbody id="leads-tbody">
-                                    <tr><td colspan="9" class="grid-loading">Loading…</td></tr>
+                                    <tr><td colspan="10" class="grid-loading">Loading…</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -340,13 +341,13 @@
                 const data = await (await fetchAdmin(url)).json();
                 currentLeads = data.leads || [];
                 if (!currentLeads.length) {
-                    tbody.innerHTML = `<tr><td colspan="9" class="grid-empty">
+                    tbody.innerHTML = `<tr><td colspan="10" class="grid-empty">
                         <strong>No leads yet.</strong> Scored leads from the public form appear here.</td></tr>`;
                     return;
                 }
                 tbody.innerHTML = currentLeads.map(rowForLead).join('');
             } catch (err) {
-                tbody.innerHTML = `<tr><td colspan="9" class="grid-empty">${esc(err.message)}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" class="grid-empty">${esc(err.message)}</td></tr>`;
             }
         }
 
@@ -364,10 +365,30 @@
                 <td>${money(val)}${highValue}</td>
                 <td class="cap">${esc(lead.route_type || '—')}</td>
                 <td><span class="badge badge-risk-${riskClass(lead.fraud_risk)}">${esc(lead.fraud_risk || '—')}</span></td>
+                <td>${sourceBadge(lead)}</td>
                 <td>${statusBadge(lead.status)}${outcomeCell}</td>
                 <td class="cell-muted">${assigned}</td>
                 <td class="cell-muted">${fmtDate(lead.created_at)}</td>
             </tr>`;
+        }
+
+        function sourceLabel(lead) {
+            return lead.source_channel || lead.source || 'unknown';
+        }
+
+        function sourceBadge(lead) {
+            const campaign = lead.source_campaign ? `<div class="source-sub">${esc(lead.source_campaign)}</div>` : '';
+            return `<div class="source-cell"><span class="badge badge-source">${esc(sourceLabel(lead))}</span>${campaign}</div>`;
+        }
+
+        function sourceDetails(lead) {
+            const pieces = [
+                `Channel: ${sourceLabel(lead)}`,
+                lead.source_medium ? `Medium: ${lead.source_medium}` : null,
+                lead.source_campaign ? `Campaign: ${lead.source_campaign}` : null,
+                lead.source_partner ? `Partner: ${lead.source_partner}` : null,
+            ].filter(Boolean);
+            return pieces.map(piece => `<span class="badge badge-source">${esc(piece)}</span>`).join('');
         }
 
         function statusBadge(status) {
@@ -421,8 +442,9 @@
                         ${lead.consent_tcpa ? '<span class="badge badge-ok">TCPA consent ✓</span>'
                             : '<span class="badge badge-warn">No consent</span>'}
                         <span class="badge badge-included">Exclusive</span>
-                        <span class="prov-meta">${esc(lead.source || '—')} · ${fmtDate(lead.captured_at)}</span>
+                        <span class="prov-meta">${esc(sourceLabel(lead))} · ${fmtDate(lead.captured_at)}</span>
                     </div>
+                    <div class="assign-prov">${sourceDetails(lead)}</div>
                     <div class="assign-ainote">
                         <span class="ai-label">AI fit · ${lead.confidence ?? '—'}% confidence</span>
                         ${esc(lead.best_customer_fit_reason)}
