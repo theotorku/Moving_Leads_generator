@@ -4,78 +4,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Customer Portal - Moving Leads AI</title>
-    <link rel="stylesheet" href="/static/customer.css">
+    <title>Customer Portal — Moving Leads AI</title>
+    <link rel="stylesheet" href="/static/customer.css?v=2">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 
 <body>
-    <main class="portal-shell">
-        <section class="portal-card access-card">
-            <p class="eyebrow">Moving Leads AI</p>
-            <h1>Customer Portal</h1>
-            <p class="copy">Check subscription health, lead allocation, and your recent lead purchases.</p>
+    <header class="topbar">
+        <div class="brand">
+            <span class="brand-mark">ML</span>
+            <span class="brand-name">Moving Leads <strong>AI</strong></span>
+        </div>
+        <nav class="topbar-links">
+            <a href="/">Submit a lead</a>
+            <a href="/admin">Admin</a>
+        </nav>
+    </header>
 
+    <main class="page">
+        <section class="card access-card">
+            <div class="card-head">
+                <h1>Customer portal</h1>
+                <p>Check your subscription, remaining lead allocation, and recent purchases.</p>
+            </div>
             <form id="portal-form">
-                <label for="customer-id">Customer ID</label>
-                <input id="customer-id" name="customer-id" type="text" required>
-
-                <label for="customer-email">Billing email</label>
-                <input id="customer-email" name="customer-email" type="email" required>
-
+                <div class="field">
+                    <label for="customer-id">Customer ID</label>
+                    <input id="customer-id" name="customer-id" type="text" required>
+                </div>
+                <div class="field">
+                    <label for="customer-email">Billing email</label>
+                    <input id="customer-email" name="customer-email" type="email" required>
+                </div>
                 <button type="submit">Open portal</button>
             </form>
-
-            <p id="portal-status" class="portal-status" aria-live="polite"></p>
+            <p id="portal-status" class="status-banner" aria-live="polite"></p>
         </section>
 
-        <section id="portal-results" class="portal-results hidden">
-            <div class="portal-card summary-card">
-                <div>
-                    <p class="eyebrow">Account summary</p>
+        <section id="portal-results" class="results hidden">
+            <div class="card summary-card">
+                <div class="summary-head">
+                    <p class="kicker">Account</p>
                     <h2 id="company-name">--</h2>
-                    <p id="subscription-message" class="copy"></p>
+                    <p id="subscription-message" class="muted"></p>
                 </div>
                 <div class="stat-grid">
-                    <article class="stat-card">
-                        <span class="stat-label">Plan</span>
-                        <strong id="plan-tier">--</strong>
-                    </article>
-                    <article class="stat-card">
-                        <span class="stat-label">Status</span>
-                        <strong id="plan-status">--</strong>
-                    </article>
-                    <article class="stat-card">
-                        <span class="stat-label">Included leads left</span>
-                        <strong id="leads-remaining">--</strong>
-                    </article>
-                    <article class="stat-card">
-                        <span class="stat-label">Overage price</span>
-                        <strong id="overage-price">--</strong>
-                    </article>
+                    <article class="stat"><span>Plan</span><strong id="plan-tier" class="cap">--</strong></article>
+                    <article class="stat"><span>Status</span><strong id="plan-status">--</strong></article>
+                    <article class="stat"><span>Included leads left</span><strong id="leads-remaining">--</strong></article>
+                    <article class="stat"><span>Overage price</span><strong id="overage-price">--</strong></article>
                 </div>
             </div>
 
-            <section class="portal-card">
+            <div class="card">
                 <h3>Recent lead purchases</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Lead ID</th>
-                            <th>Type</th>
-                            <th>Price</th>
-                            <th>Purchased</th>
-                        </tr>
-                    </thead>
-                    <tbody id="purchases-body">
-                        <tr>
-                            <td colspan="4">No purchases loaded.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </section>
+                <div class="table-wrap">
+                    <table class="data-grid">
+                        <thead>
+                            <tr><th>Lead</th><th>Type</th><th>Price</th><th>Purchased</th></tr>
+                        </thead>
+                        <tbody id="purchases-body">
+                            <tr><td colspan="4" class="grid-empty">No purchases loaded.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </section>
     </main>
 
@@ -85,31 +80,40 @@
         const results = document.getElementById('portal-results');
 
         function setStatus(message, tone = '') {
-            statusMessage.textContent = message;
-            statusMessage.className = message ? `portal-status ${tone}` : 'portal-status';
+            statusMessage.textContent = message || '';
+            statusMessage.className = message ? `status-banner status-${tone || 'info'}` : 'status-banner';
         }
-
-        function formatCurrency(amount) {
-            return '$' + Number(amount || 0).toLocaleString();
+        function formatCurrency(amount) { return '$' + Number(amount || 0).toLocaleString(); }
+        function esc(v) {
+            return String(v ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+        }
+        function fmtDate(v) {
+            if (!v) return 'Pending';
+            const d = new Date(v);
+            return isNaN(d) ? esc(v) : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+        function setStatusBadge(status, canReceive) {
+            const el = document.getElementById('plan-status');
+            el.textContent = status;
+            const ok = canReceive || ['active', 'trialing'].includes(status);
+            el.className = 'badge ' + (ok ? 'badge-ok' : 'badge-warn');
         }
 
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
-
             const customerId = document.getElementById('customer-id').value.trim();
             const email = document.getElementById('customer-email').value.trim();
             if (!customerId || !email) {
                 setStatus('Enter both your customer ID and billing email.', 'error');
                 return;
             }
-
             setStatus('Loading portal…');
 
             try {
                 const url = `/customers/portal/access?customer_id=${encodeURIComponent(customerId)}&email=${encodeURIComponent(email)}`;
                 const response = await fetch(url);
                 const payload = await response.json();
-
                 if (!response.ok) {
                     throw new Error(payload.detail || 'Unable to load the portal.');
                 }
@@ -117,26 +121,26 @@
                 document.getElementById('company-name').textContent = payload.customer.company_name;
                 document.getElementById('subscription-message').textContent = payload.subscription.billing_message;
                 document.getElementById('plan-tier').textContent = payload.subscription.tier;
-                document.getElementById('plan-status').textContent = payload.subscription.status;
+                setStatusBadge(payload.subscription.status, payload.subscription.can_receive_leads);
                 document.getElementById('leads-remaining').textContent = payload.subscription.leads_remaining;
                 document.getElementById('overage-price').textContent = formatCurrency(payload.subscription.overage_price);
 
                 const purchasesBody = document.getElementById('purchases-body');
                 if (!payload.recent_purchases.length) {
-                    purchasesBody.innerHTML = '<tr><td colspan="4">No lead purchases yet.</td></tr>';
+                    purchasesBody.innerHTML = '<tr><td colspan="4" class="grid-empty">No lead purchases yet.</td></tr>';
                 } else {
-                    purchasesBody.innerHTML = payload.recent_purchases.map((purchase) => `
+                    purchasesBody.innerHTML = payload.recent_purchases.map((p) => `
                         <tr>
-                            <td>${purchase.lead_id}</td>
-                            <td>${purchase.purchase_type}</td>
-                            <td>${formatCurrency(purchase.price_paid)}</td>
-                            <td>${purchase.purchased_at || 'Pending'}</td>
+                            <td class="mono">${esc(p.lead_id)}</td>
+                            <td><span class="badge ${p.purchase_type === 'overage' ? 'badge-overage' : 'badge-included'}">${esc(p.purchase_type)}</span></td>
+                            <td>${formatCurrency(p.price_paid)}</td>
+                            <td class="muted">${fmtDate(p.purchased_at)}</td>
                         </tr>
                     `).join('');
                 }
 
                 results.classList.remove('hidden');
-                setStatus('Portal loaded successfully.', 'success');
+                setStatus('Portal loaded.', 'success');
             } catch (error) {
                 results.classList.add('hidden');
                 setStatus(error.message || 'Unable to load the portal.', 'error');
@@ -144,4 +148,5 @@
         });
     </script>
 </body>
+
 </html>

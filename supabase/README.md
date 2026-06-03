@@ -66,6 +66,24 @@ Configure `STRIPE_WEBHOOK_SECRET`, point a Stripe webhook at `/stripe/webhook`,
 then set `RECONCILE_VIA_WEBHOOK=true` to stop the per-read Stripe sync calls
 (removes the N+1 latency on admin endpoints).
 
+### Registering the endpoint
+
+**Local dev (Stripe CLI):**
+```bash
+stripe listen --forward-to localhost:8000/stripe/webhook   # prints whsec_… -> STRIPE_WEBHOOK_SECRET
+stripe trigger payment_intent.succeeded                    # send a test event
+```
+
+**Production (Dashboard):** Developers → Webhooks → *Add endpoint* →
+`https://<your-host>/stripe/webhook`; subscribe to `customer.subscription.*`,
+`invoice.payment_succeeded/failed`, `payment_intent.succeeded/payment_failed`,
+`charge.refunded`; copy the signing secret to `STRIPE_WEBHOOK_SECRET`.
+
+> Note: with `RECONCILE_VIA_WEBHOOK=true`, subscription/payment state is updated
+> **only** by webhook events — make sure the endpoint is actually registered and
+> reachable (in local dev, keep `stripe listen` running), or set it back to
+> `false` to fall back to per-read Stripe sync.
+
 ## Applying
 
 **Supabase CLI (recommended):**
