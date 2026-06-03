@@ -52,6 +52,11 @@ schema source of truth. That caused three concrete problems this layer fixes:
     (`consent_tcpa`, `consent_text`, `consent_at`) captured at submission. Stays
     on the RLS-locked `leads` table; the public form has a consent checkbox and
     the Command Center shows consent / source / "Exclusive (sold once)".
+12. `migrations/20260101000013_analytics_trialing.sql` — `admin_analytics()` now
+    also returns `trialing_subscriptions` and `active_or_trialing_subscriptions`.
+    Assignment accepts `trialing` subs, so a trial-only platform previously read
+    as `active_subscriptions: 0` (looked empty). `active_subscriptions` / MRR stay
+    paying-only; the new count matches what assignment will actually accept.
 
 ## Security model (RLS)
 

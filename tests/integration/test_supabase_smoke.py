@@ -37,6 +37,8 @@ def test_admin_analytics_rpc_returns_expected_shape():
     for key in (
         "total_customers",
         "active_subscriptions",
+        "trialing_subscriptions",
+        "active_or_trialing_subscriptions",
         "monthly_recurring_revenue",
         "total_leads",
         "available_leads",

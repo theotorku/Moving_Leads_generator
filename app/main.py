@@ -41,17 +41,30 @@ app.include_router(webhooks.router)
 # Serve static files
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
+
+def _html(filename: str) -> FileResponse:
+    # The HTML documents themselves can't be cache-busted via a query string
+    # (users type bare URLs), so a stale cached page can silently ship old
+    # behavior — e.g. a form that predates the consent field. `no-cache` forces
+    # the browser to revalidate; ETag/Last-Modified still yield a 304 when the
+    # file is unchanged, so this costs a conditional request, not a full reload.
+    return FileResponse(
+        FRONTEND_DIR / filename,
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
 # Serve the HTML form at the root
 @app.get("/", response_class=FileResponse)
 async def read_index():
-    return FileResponse(FRONTEND_DIR / "index.html")
+    return _html("index.html")
 
 # Serve admin dashboard
 @app.get("/admin", response_class=FileResponse)
 async def read_admin():
-    return FileResponse(FRONTEND_DIR / "admin.html")
+    return _html("admin.html")
 
 
 @app.get("/portal", response_class=FileResponse)
 async def read_customer_portal():
-    return FileResponse(FRONTEND_DIR / "customer.html")
+    return _html("customer.html")

@@ -40,6 +40,7 @@
                 <div class="metric"><span id="m-available">--</span><label>Available</label></div>
                 <div class="metric"><span id="m-sold">--</span><label>Sold</label></div>
                 <div class="metric"><span id="m-customers">--</span><label>Customers</label></div>
+                <div class="metric"><span id="m-subs" title="Active or trialing — eligible for assignment">--</span><label>Assignable</label></div>
                 <div class="metric"><span id="m-mrr">$--</span><label>MRR</label></div>
                 <div class="metric"><span id="m-overage">$--</span><label>Overage</label></div>
                 <div class="metric"><span id="m-booked">--</span><label>Booked</label></div>
@@ -293,6 +294,9 @@
             document.getElementById('m-available').textContent = data.available_leads;
             document.getElementById('m-sold').textContent = data.sold_leads;
             document.getElementById('m-customers').textContent = data.total_customers;
+            const subsEl = document.getElementById('m-subs');
+            subsEl.textContent = data.active_or_trialing_subscriptions ?? data.active_subscriptions ?? '--';
+            subsEl.title = `${data.active_subscriptions ?? 0} active · ${data.trialing_subscriptions ?? 0} trialing — eligible for assignment`;
             document.getElementById('m-mrr').textContent = money(data.monthly_recurring_revenue);
             document.getElementById('m-overage').textContent = money(data.overage_revenue);
         }
