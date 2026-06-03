@@ -39,6 +39,10 @@ schema source of truth. That caused three concrete problems this layer fixes:
    `lead_purchases` plus `record_lead_outcome()` and `conversion_analytics()`
    RPCs: the feedback loop (sold → contacted → appointment → booked, plus
    lost/disputed) and **cost per booked move**.
+9. `migrations/20260101000010_lead_segment_stats.sql` — `lead_segment_stats()`
+   RPC feeding outcomes back into scoring: a new lead's AI booking probability
+   is blended toward the real book rate of its route+urgency segment, and high
+   dispute segments bump fraud risk (see `app/ai/calibration.py`).
 
 ## Security model (RLS)
 

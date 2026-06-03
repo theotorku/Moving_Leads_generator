@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Moving Leads AI | Score a lead</title>
-  <link rel="stylesheet" href="/static/style.css?v=2">
+  <link rel="stylesheet" href="/static/style.css?v=3">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -119,6 +119,7 @@
           <article><span>Risk</span><strong id="fraudRisk">--</strong></article>
         </div>
         <p class="followup" id="followupText"></p>
+        <p class="calibration" id="calibrationText"></p>
         <button type="button" id="resetBtn" class="secondary-button">Analyze another lead</button>
       </div>
 
@@ -147,6 +148,7 @@
     const routeType = document.getElementById('routeType');
     const fraudRisk = document.getElementById('fraudRisk');
     const followupText = document.getElementById('followupText');
+    const calibrationText = document.getElementById('calibrationText');
     const statusMessage = document.getElementById('statusMessage');
     const resetBtn = document.getElementById('resetBtn');
     const loaderText = document.getElementById('loaderText');
@@ -201,6 +203,7 @@
       routeType.textContent = '--';
       fraudRisk.textContent = '--';
       followupText.textContent = '';
+      calibrationText.textContent = '';
       setStatus('');
     }
 
@@ -250,6 +253,8 @@
         routeType.textContent = data.route_type || 'unknown';
         fraudRisk.textContent = data.fraud_risk || 'unknown';
         followupText.textContent = data.recommended_followup || '';
+        calibrationText.textContent = (data.calibration && data.calibration.applied)
+          ? '📊 ' + data.calibration.note : '';
         setScoreTone(data.score);
         const savedNote = data.persisted === false ? ' (not saved — database not configured)' : '';
         setStatus('Lead analyzed successfully.' + savedNote, data.persisted === false ? 'warn' : 'success');

@@ -168,3 +168,4 @@ class ScoreResponse(ScoredLead):
 
     persisted: bool = True
     persistence_warning: Optional[str] = None
+    calibration: Optional[dict] = None
