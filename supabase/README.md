@@ -40,15 +40,14 @@ schema source of truth. That caused three concrete problems this layer fixes:
 - **Backend** authenticates with the **service_role** key (`SUPABASE_KEY` in
   `moving-leads-ai/.env`) and bypasses RLS — it performs all writes, admin reads,
   and RPC calls.
-- **Frontend** uses the **anon** key (`VITE_SUPABASE_*`) and, after hardening, can
-  only `SELECT public.leads` (the dashboard). All other tables are RLS-denied and
-  removed from the anon/authenticated API grants.
+- **The UI is the FastAPI-served vanilla frontend** in `app/frontend/` (`/`,
+  `/admin`, `/portal`); it calls backend endpoints only. No browser client reads
+  Supabase directly. (The separate React app that did was retired.)
 - The `assign_lead_to_customer` and `admin_analytics` RPCs are `EXECUTE`-revoked
   from anon/authenticated and granted to `service_role` only.
 
-> ⚠️ `leads` is still anon-readable (PII) to keep the public dashboard working.
-> Recommended follow-up: put the dashboard behind auth and drop the
-> `leads_anon_select` policy + anon SELECT grant.
+As of `20260101000008_lock_down_leads_anon.sql`, **anon/authenticated have no
+access to any table** — the database is fully locked to `service_role`.
 
 ## Webhook reconciliation
 
