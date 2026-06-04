@@ -11,6 +11,7 @@ An AI-powered lead generation and monetization platform for the moving industry,
 - **Outcome-Calibrated Scores** - A new lead's AI booking probability is blended toward the *real* book rate of its route+urgency segment (shrinkage toward the AI prior), and high-dispute segments bump fraud risk — scores get sharper as outcomes accrue
 - **Lead Attribution, Provenance & TCPA Consent** - Every lead records channel, medium, campaign, partner/referrer, landing page, source URL, capture IP (first `X-Forwarded-For` hop), and explicit TCPA consent (text + timestamp) — the compliance layer for selling exclusive leads
 - **Multi-Source Ingestion** - Leads enter via the public form, an authenticated partner API (`POST /leads/intake` with per-partner keys), or admin CSV bulk-import — all sharing one scoring/persistence pipeline so every channel is scored and attributed identically
+- **Source ROI** - Set a cost-per-lead per channel; the Sources view derives spend, profit, ROI, and acquisition cost-per-booked-move so you can see which channels actually pay off
 
 ### Feedback Loop & Routing
 - **Outcome Tracking** - Record each sold lead's progress (contacted → appointment → booked, or lost/disputed/refunded) and surface **cost per booked move** and conversion analytics
@@ -218,7 +219,8 @@ pytest
 ### Admin Endpoints (requires authentication)
 - `GET /admin/analytics` - Revenue and usage metrics
 - `GET /admin/conversion` - Conversion funnel + cost per booked move
-- `GET /admin/sources` - Per-channel acquisition rollup (volume, quality, conversion, revenue) — *where leads come from*
+- `GET /admin/sources` - Per-channel acquisition rollup (volume, quality, conversion, revenue, **spend / ROI / cost-per-booked**) — *where leads come from*
+- `PUT /admin/sources/{channel}/cost` - Set a channel's acquisition cost-per-lead (drives spend / ROI)
 - `GET /admin/leads` - List all leads (with filters)
 - `GET /admin/leads/{id}/assignment-options` - Suggest the best-fit customer targets for a lead (routing fit + billing health)
 - `POST /admin/leads/{id}/assign` - Assign lead to customer

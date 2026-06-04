@@ -497,6 +497,26 @@ def get_lead_sources() -> list:
         raise HTTPException(status_code=500, detail="Unable to load lead sources.")
 
 
+def set_channel_cost(channel: str, cost_per_lead: float) -> dict:
+    """Upsert a channel's acquisition cost-per-lead (feeds ROI in the rollup)."""
+    from datetime import datetime, timezone
+    from .attribution import normalize_channel
+
+    supabase = _get_supabase()
+    key = normalize_channel(channel)
+    record = {
+        "channel": key,
+        "cost_per_lead": cost_per_lead,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        supabase.table("channel_costs").upsert(record, on_conflict="channel").execute()
+    except Exception:
+        logger.exception("Failed to set channel cost")
+        raise HTTPException(status_code=500, detail="Unable to update channel cost.")
+    return {"channel": key, "cost_per_lead": cost_per_lead}
+
+
 _EMPTY_PROFILE = {
     "service_zips": [], "accepted_route_types": [], "accepted_home_sizes": [],
     "min_job_value": 0, "fmcsa_number": None,

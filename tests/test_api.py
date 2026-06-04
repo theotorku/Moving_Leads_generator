@@ -628,6 +628,29 @@ def test_lead_sources_requires_admin():
     assert client.get("/admin/sources").status_code == 401
 
 
+def test_set_channel_cost_upserts_and_normalizes():
+    mock_supabase = MagicMock()
+    mock_supabase.table.return_value.upsert.return_value.execute.return_value = SimpleNamespace(data=[])
+    with patch("app.services.admin_service.get_supabase_client", return_value=mock_supabase):
+        res = client.put("/admin/sources/google/cost", json={"cost_per_lead": 18.5}, headers=auth_headers())
+    assert res.status_code == 200
+    body = res.json()
+    assert body["channel"] == "google_ads"   # normalized from "google"
+    assert body["cost_per_lead"] == 18.5
+    upserted = mock_supabase.table.return_value.upsert.call_args.args[0]
+    assert upserted["channel"] == "google_ads"
+    assert upserted["cost_per_lead"] == 18.5
+
+
+def test_set_channel_cost_requires_admin():
+    assert client.put("/admin/sources/direct/cost", json={"cost_per_lead": 5}).status_code == 401
+
+
+def test_set_channel_cost_rejects_negative():
+    res = client.put("/admin/sources/direct/cost", json={"cost_per_lead": -3}, headers=auth_headers())
+    assert res.status_code == 422
+
+
 # --- Phase D: partner intake + CSV import -----------------------------------
 
 def test_intake_requires_api_key():

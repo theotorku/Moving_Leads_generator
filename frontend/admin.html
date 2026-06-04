@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Command Center — Moving Leads AI</title>
-    <link rel="stylesheet" href="/static/admin.css?v=9">
+    <link rel="stylesheet" href="/static/admin.css?v=10">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -157,16 +157,18 @@
                                 <th>Channel</th>
                                 <th>Leads</th>
                                 <th>Avg score</th>
-                                <th>Avg booking</th>
                                 <th>Sold</th>
                                 <th>Booked</th>
                                 <th>Book rate</th>
-                                <th>Disputed</th>
                                 <th>Revenue</th>
+                                <th title="Acquisition cost per lead — click to edit">Cost/lead</th>
+                                <th>Spend</th>
+                                <th>ROI</th>
+                                <th title="Acquisition spend per booked move">$/Booked</th>
                             </tr>
                         </thead>
                         <tbody id="sources-tbody">
-                            <tr><td colspan="9" class="grid-loading">Loading…</td></tr>
+                            <tr><td colspan="11" class="grid-loading">Loading…</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -459,25 +461,53 @@
                 const data = await (await fetchAdmin('/admin/sources')).json();
                 const rows = data.sources || [];
                 if (!rows.length) {
-                    tbody.innerHTML = '<tr><td colspan="9" class="grid-empty">No leads captured yet.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="11" class="grid-empty">No leads captured yet.</td></tr>';
                     return;
                 }
-                tbody.innerHTML = rows.map(s => `
+                tbody.innerHTML = rows.map(s => {
+                    const roi = s.roi_pct;
+                    const roiCell = roi == null ? '—'
+                        : `<span class="${roi >= 0 ? 'roi-pos' : 'roi-neg'}">${roi}%</span>`;
+                    return `
                     <tr>
                         <td><span class="badge badge-source">${esc(s.channel || 'unknown')}</span></td>
                         <td>${s.leads ?? 0}</td>
                         <td>${s.avg_score ?? '—'}</td>
-                        <td>${s.avg_booking_probability == null ? '—' : s.avg_booking_probability + '%'}</td>
                         <td>${s.sold ?? 0}</td>
                         <td>${s.booked ?? 0}</td>
                         <td>${s.book_rate == null ? '—' : s.book_rate + '%'}</td>
-                        <td>${s.disputed ?? 0}</td>
                         <td>${money(s.revenue || 0)}</td>
-                    </tr>
-                `).join('');
+                        <td><input type="number" class="cost-input" min="0" step="0.50"
+                            value="${Number(s.cost_per_lead || 0)}" data-channel="${esc(s.channel)}"
+                            aria-label="Cost per lead for ${esc(s.channel)}"></td>
+                        <td>${money(s.spend || 0)}</td>
+                        <td>${roiCell}</td>
+                        <td>${s.cost_per_booked == null ? '—' : money(s.cost_per_booked)}</td>
+                    </tr>`;
+                }).join('');
+                tbody.querySelectorAll('.cost-input').forEach(input => {
+                    input.addEventListener('change', () => saveChannelCost(input));
+                });
             } catch (err) {
                 console.error('sources load failed', err);
-                tbody.innerHTML = '<tr><td colspan="9" class="grid-empty">Failed to load sources.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="11" class="grid-empty">Failed to load sources.</td></tr>';
+            }
+        }
+
+        async function saveChannelCost(input) {
+            const channel = input.dataset.channel;
+            const cost = Math.max(0, Number(input.value) || 0);
+            input.disabled = true;
+            try {
+                await fetchAdmin(`/admin/sources/${encodeURIComponent(channel)}/cost`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cost_per_lead: cost }),
+                });
+                await loadSources();   // refresh spend / ROI / $-per-booked
+            } catch (err) {
+                alert(err.message);
+                input.disabled = false;
             }
         }
 

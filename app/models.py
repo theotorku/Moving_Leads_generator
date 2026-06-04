@@ -214,6 +214,12 @@ class IngestSourceCreate(BaseModel):
     partner: Optional[str] = None
 
 
+class ChannelCostUpdate(BaseModel):
+    """Set the acquisition cost-per-lead for a source channel."""
+
+    cost_per_lead: Annotated[float, Field(ge=0, le=100000)]
+
+
 class RoutingProfileUpdate(BaseModel):
     """A buyer's lead-routing preferences (empty lists = no restriction)."""
 

@@ -70,6 +70,10 @@ schema source of truth. That caused three concrete problems this layer fixes:
     per-partner intake API keys (SHA-256 hashed; plaintext shown once) mapping a
     presented key to a channel + partner for `POST /leads/intake`. RLS-locked to
     service_role like every other table.
+16. `migrations/20260101000017_channel_costs.sql` — `channel_costs` table
+    (cost-per-lead per channel) + rebuilt `leads_by_source()` to emit
+    `cost_per_lead`, `spend`, `profit`, `roi_pct`, and `cost_per_booked`. Turns
+    the Sources rollup into ROI by source. Set via `PUT /admin/sources/{channel}/cost`.
 
 ## Security model (RLS)
 

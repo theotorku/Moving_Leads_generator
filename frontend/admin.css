@@ -100,6 +100,10 @@ main { flex: 1; padding: 18px 20px; max-width: 1500px; width: 100%; margin: 0 au
 .key-banner-error { background: var(--danger-bg); color: var(--danger); }
 .key-value { display: block; margin-top: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; word-break: break-all; background: var(--surface); padding: 8px; border-radius: 6px; border: 1px solid var(--border); }
 .skip-list { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: 12.5px; }
+.cost-input { width: 74px; padding: 4px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); font: inherit; font-size: 12.5px; }
+.cost-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47, 109, 246, 0.15); }
+.roi-pos { color: var(--success); font-weight: 600; }
+.roi-neg { color: var(--danger); font-weight: 600; }
 @media (max-width: 820px) { .intake-panels { grid-template-columns: 1fr; } }
 .filters { display: flex; gap: 8px; }
 .filters select, .filters input { padding: 7px 9px; border: 1px solid var(--border); border-radius: var(--radius-sm); font: inherit; font-size: 13px; }

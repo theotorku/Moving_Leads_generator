@@ -153,5 +153,6 @@ def test_leads_by_source_rpc_returns_per_channel_rows():
         for key in (
             "channel", "leads", "avg_score", "avg_booking_probability",
             "sold", "booked", "disputed", "revenue", "book_rate",
+            "cost_per_lead", "spend", "profit", "roi_pct", "cost_per_booked",
         ):
             assert key in row, f"leads_by_source() row missing key: {key}"

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from ..config import get_settings
-from ..models import IngestSourceCreate, LeadStatus, RoutingProfileUpdate
+from ..models import ChannelCostUpdate, IngestSourceCreate, LeadStatus, RoutingProfileUpdate
 from ..services.admin_service import (
     assign_lead_to_customer,
     get_admin_analytics,
@@ -17,6 +17,7 @@ from ..services.admin_service import (
     list_customers_for_admin,
     list_leads_for_admin,
     record_lead_outcome,
+    set_channel_cost,
     upsert_routing_profile,
 )
 from ..services.csv_import import import_leads_from_csv
@@ -106,8 +107,13 @@ async def get_conversion(admin: str = Depends(verify_admin)):
 
 @router.get("/admin/sources")
 async def get_sources(admin: str = Depends(verify_admin)):
-    """Per-channel acquisition rollup — where leads come from (volume/quality/conversion)."""
+    """Per-channel acquisition rollup — where leads come from (volume/quality/conversion/ROI)."""
     return {"sources": get_lead_sources()}
+
+@router.put("/admin/sources/{channel}/cost")
+async def set_source_cost(channel: str, body: ChannelCostUpdate, admin: str = Depends(verify_admin)):
+    """Set a channel's acquisition cost-per-lead (drives spend / ROI / cost-per-booked)."""
+    return set_channel_cost(channel, body.cost_per_lead)
 
 @router.get("/admin/ingest-sources")
 async def list_intake_sources(admin: str = Depends(verify_admin)):
