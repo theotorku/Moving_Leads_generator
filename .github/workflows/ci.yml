@@ -74,3 +74,10 @@ jobs:
         env:
           RUN_E2E: "1"
         run: python -m pytest -q tests/e2e
+      - name: Upload E2E traces/screenshots on failure
+        if: failure() && env.SUPABASE_URL != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: tests/e2e/artifacts/
+          if-no-files-found: ignore

@@ -13,3 +13,4 @@ test_system.py
 # Generated artifacts (browser/test output)
 output/
 .playwright-mcp/
+tests/e2e/artifacts/
