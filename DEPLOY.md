@@ -104,8 +104,12 @@ your DNS provider. TLS is provisioned automatically.
 - **Rate limiting is per-process.** With `--workers 2` the effective public limit
   is ~`2 × RATE_LIMIT_PER_MINUTE` per IP — enough for cost protection, not a hard
   cluster cap. A strict limit would need Redis.
-- **Admin auth is HTTP Basic** with a single shared credential over TLS. Fine for a
-  small operator; consider per-user auth if the team grows.
+- **Admin auth is HTTP Basic** with a single shared credential over TLS. Failed
+  logins are rate-limited per IP (`ADMIN_LOGIN_MAX_ATTEMPTS_PER_MINUTE`, 429
+  lockout) and every mutating action is recorded to `admin_audit_log` (Command
+  Center → Activity). Still single-credential — for multiple admins / per-user
+  identity, move to Supabase Auth, and consider an IP allowlist on `/admin` at the
+  edge.
 - **CI/CD:** pushes to `main` autodeploy on Render. GitHub Actions runs the mocked
   suite on every push; set the `SUPABASE_*`/`OPENAI`/`ADMIN_*` repo secrets to also
   run the live smoke + browser E2E jobs (ideally against a separate test project).

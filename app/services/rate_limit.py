@@ -9,6 +9,16 @@ limit would need Redis.
 import time
 from threading import Lock
 
+from fastapi import Request
+
+
+def client_ip(request: Request) -> str:
+    """Best-effort client IP: first X-Forwarded-For hop, else the socket peer."""
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
 
 class FixedWindowRateLimiter:
     def __init__(self, max_per_window: int, window_seconds: int = 60):

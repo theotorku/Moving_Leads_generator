@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Command Center — Moving Leads AI</title>
-    <link rel="stylesheet" href="/static/admin.css?v=10">
+    <link rel="stylesheet" href="/static/admin.css?v=11">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -60,6 +60,10 @@
                 <button class="nav-btn" data-view="sources" title="Sources">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
                     Sources
+                </button>
+                <button class="nav-btn" data-view="activity" title="Activity">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+                    Activity
                 </button>
                 <button class="nav-btn ghost" id="refresh-btn" title="Refresh">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
@@ -233,6 +237,24 @@
                     </div>
                 </div>
             </section>
+
+            <!-- Activity view -->
+            <section id="activity-view" class="view">
+                <div class="col-head">
+                    <h2>Activity</h2>
+                    <p class="col-sub">Audit trail of admin actions — who did what, when, and from where.</p>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-grid">
+                        <thead>
+                            <tr><th>When</th><th>Admin</th><th>Action</th><th>Target</th><th>Detail</th><th>IP</th></tr>
+                        </thead>
+                        <tbody id="activity-tbody">
+                            <tr><td colspan="6" class="grid-loading">Loading…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </main>
 
         <!-- Register customer modal -->
@@ -362,8 +384,43 @@
         async function loadDashboard() {
             await Promise.all([
                 loadAnalytics(), loadConversion(), loadSources(),
-                loadIngestSources(), loadCustomers().then(loadLeads),
+                loadIngestSources(), loadActivity(), loadCustomers().then(loadLeads),
             ]);
+        }
+
+        async function loadActivity() {
+            const tbody = document.getElementById('activity-tbody');
+            try {
+                const data = await (await fetchAdmin('/admin/audit?limit=100')).json();
+                const rows = data.entries || [];
+                if (!rows.length) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="grid-empty">No admin activity yet.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = rows.map(e => {
+                    let detail = '';
+                    if (e.detail) { try { detail = JSON.stringify(e.detail); } catch { detail = ''; } }
+                    const target = [e.target_type, e.target_id].filter(Boolean).join(': ');
+                    return `<tr>
+                        <td class="muted">${e.created_at ? fmtDateTime(e.created_at) : '—'}</td>
+                        <td>${esc(e.admin_user || '—')}</td>
+                        <td><span class="badge badge-source">${esc(e.action)}</span></td>
+                        <td class="mono">${esc(target || '—')}</td>
+                        <td class="muted">${esc(detail)}</td>
+                        <td class="muted">${esc(e.ip || '—')}</td>
+                    </tr>`;
+                }).join('');
+            } catch (err) {
+                console.error('activity load failed', err);
+                tbody.innerHTML = '<tr><td colspan="6" class="grid-empty">Failed to load activity.</td></tr>';
+            }
+        }
+
+        function fmtDateTime(v) {
+            const d = new Date(v);
+            return isNaN(d) ? esc(v) : d.toLocaleString(undefined, {
+                month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+            });
         }
 
         /* ---- partner intake keys ---- */

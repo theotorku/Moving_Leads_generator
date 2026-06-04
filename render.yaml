@@ -58,6 +58,10 @@ services:
       - key: RATE_LIMIT_PER_MINUTE
         value: "30"
 
+      # Failed admin-login attempts per IP per minute before a 429 lockout.
+      - key: ADMIN_LOGIN_MAX_ATTEMPTS_PER_MINUTE
+        value: "10"
+
     # Auto-deploy on push to main branch
     autoDeploy: true
 

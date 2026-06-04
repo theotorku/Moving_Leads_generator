@@ -74,6 +74,10 @@ schema source of truth. That caused three concrete problems this layer fixes:
     (cost-per-lead per channel) + rebuilt `leads_by_source()` to emit
     `cost_per_lead`, `spend`, `profit`, `roi_pct`, and `cost_per_booked`. Turns
     the Sources rollup into ROI by source. Set via `PUT /admin/sources/{channel}/cost`.
+17. `migrations/20260101000018_admin_audit_log.sql` — `admin_audit_log` table:
+    append-only trail of mutating admin actions (who/action/target/detail/ip).
+    Written best-effort by `record_admin_action`, read via `GET /admin/audit` and
+    the Command Center "Activity" view. RLS-locked to service_role.
 
 ## Security model (RLS)
 

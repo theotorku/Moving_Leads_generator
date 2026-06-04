@@ -81,6 +81,16 @@ def clear_cached_clients():
     get_openai_client.cache_clear()
 
 
+@pytest.fixture(autouse=True)
+def no_live_audit_writes():
+    """Admin mutating routes call record_admin_action; without this, these mocked
+    tests would write real rows to the live admin_audit_log whenever SUPABASE_* is
+    configured locally. Default it to a no-op; audit-specific tests re-patch it."""
+    with patch("app.services.audit_service.get_supabase_client",
+               side_effect=RuntimeError("audit disabled in unit tests")):
+        yield
+
+
 def auth_headers(
     username: str = DEFAULT_ADMIN_USERNAME,
     password: str = DEFAULT_ADMIN_PASSWORD,
@@ -788,6 +798,66 @@ def test_score_endpoint_returns_429_when_rate_limited():
         second = client.post("/leads/score", json=payload)
     assert first.status_code == 200
     assert second.status_code == 429
+
+
+# --- Admin login lockout + audit log ----------------------------------------
+
+def test_admin_login_locks_out_after_repeated_failures():
+    bad = {"Authorization": "Basic " + base64.b64encode(b"admin:wrong").decode()}
+    with patch("app.routes.admin._login_limiter", FixedWindowRateLimiter(max_per_window=2)):
+        first = client.get("/admin/analytics", headers=bad)
+        second = client.get("/admin/analytics", headers=bad)
+        third = client.get("/admin/analytics", headers=bad)
+    assert first.status_code == 401      # within budget
+    assert second.status_code == 401
+    assert third.status_code == 429      # locked out
+
+
+def test_correct_admin_login_not_throttled():
+    # A valid credential must never be blocked, even with a tiny budget.
+    mock_supabase = _rpc_supabase(returns={"total_leads": 0})
+    with (
+        patch("app.routes.admin._login_limiter", FixedWindowRateLimiter(max_per_window=1)),
+        patch("app.services.admin_service.get_supabase_client", return_value=mock_supabase),
+    ):
+        for _ in range(3):
+            assert client.get("/admin/analytics", headers=auth_headers()).status_code == 200
+
+
+def test_assign_lead_writes_audit_entry():
+    # leads.assign RPC + a separate audit insert on admin_audit_log.
+    audit_table = MagicMock()
+    audit_table.insert.return_value.execute.return_value = SimpleNamespace(data=[{}])
+    rpc_client = MagicMock()
+    rpc_client.rpc.return_value.execute.return_value = SimpleNamespace(
+        data={"success": True, "purchase_type": "included", "price": 0,
+              "payment_status": "recorded", "lead_status": "sold",
+              "note": "Lead assigned", "purchase_id": "purchase-1"})
+    rpc_client.table.return_value = audit_table  # admin_audit_log insert
+    with (
+        patch("app.services.admin_service.get_supabase_client", return_value=rpc_client),
+        patch("app.services.audit_service.get_supabase_client", return_value=rpc_client),
+    ):
+        res = client.post("/admin/leads/lead-1/assign?customer_id=cust-1", headers=auth_headers())
+    assert res.status_code == 200
+    logged = audit_table.insert.call_args.args[0]
+    assert logged["action"] == "assign_lead"
+    assert logged["target_id"] == "lead-1"
+    assert logged["admin_user"]            # captured from auth
+
+
+def test_audit_endpoint_returns_entries():
+    mock_supabase = MagicMock()
+    mock_supabase.table.return_value.select.return_value.order.return_value.limit.return_value.execute.return_value = \
+        SimpleNamespace(data=[{"action": "assign_lead", "admin_user": "admin", "target_id": "lead-1"}])
+    with patch("app.services.audit_service.get_supabase_client", return_value=mock_supabase):
+        res = client.get("/admin/audit", headers=auth_headers())
+    assert res.status_code == 200
+    assert res.json()["entries"][0]["action"] == "assign_lead"
+
+
+def test_audit_endpoint_requires_admin():
+    assert client.get("/admin/audit").status_code == 401
 
 
 # --- Stripe webhook reconciliation ------------------------------------------

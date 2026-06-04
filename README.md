@@ -239,6 +239,7 @@ pytest
 - `POST /admin/ingest-sources` - Create a partner intake key (returns the key **once**)
 - `POST /admin/ingest-sources/{id}/revoke` - Deactivate a partner key
 - `POST /admin/leads/import` - Bulk-import leads from an uploaded CSV (scored + persisted per row)
+- `GET /admin/audit` - Recent mutating admin actions (who / action / target / IP / time)
 
 ## 💰 Revenue Model
 
@@ -276,6 +277,14 @@ The platform uses a hybrid monetization strategy:
   explicit consent (text + timestamp). The public form requires a consent checkbox
   and the Command Center surfaces consent status/source before a buyer purchases -
   the audit trail for selling contactable, exclusive leads.
+- **Admin audit trail** - every mutating admin action (assign/sell a lead, record
+  an outcome, set a channel cost, mint/revoke a partner key, CSV import) is logged
+  to `admin_audit_log` (who / action / target / IP / time) and shown in the Command
+  Center "Activity" view.
+- **Abuse / cost controls** - per-IP rate limiting on the public, OpenAI-spending
+  scoring endpoints (`RATE_LIMIT_PER_MINUTE`), and a per-IP brute-force lockout on
+  admin login (`ADMIN_LOGIN_MAX_ATTEMPTS_PER_MINUTE`; a correct credential is never
+  throttled). Both are per-process — see `DEPLOY.md` for the Redis/edge caveat.
 - Startup validation with environment-based configuration warnings
 - Basic HTTP authentication for admin routes (replace the default credentials)
 - Secrets via `SecretStr`, excluded from version control

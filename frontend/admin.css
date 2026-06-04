@@ -125,6 +125,8 @@ main { flex: 1; padding: 18px 20px; max-width: 1500px; width: 100%; margin: 0 au
 .data-grid tbody tr:last-child td { border-bottom: none; }
 .cell-strong { font-weight: 600; }
 .cell-muted { color: var(--muted); font-size: 12.5px; }
+.muted { color: var(--muted); }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
 .grid-loading, .grid-empty { text-align: center; color: var(--muted); padding: 28px 12px !important; }
 .grid-empty strong { color: var(--text); }
 

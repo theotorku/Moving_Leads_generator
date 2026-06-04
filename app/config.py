@@ -41,6 +41,11 @@ class Settings(BaseModel):
     rate_limit_per_minute: int = Field(
         default_factory=lambda: int(os.getenv("RATE_LIMIT_PER_MINUTE", "30") or 0)
     )
+    # Failed admin-login attempts allowed per IP per minute before a 429 lockout
+    # (a correct credential is never throttled). 0 disables.
+    admin_login_max_attempts_per_minute: int = Field(
+        default_factory=lambda: int(os.getenv("ADMIN_LOGIN_MAX_ATTEMPTS_PER_MINUTE", "10") or 0)
+    )
 
     def startup_messages(self) -> tuple[list[str], list[str]]:
         warnings: list[str] = []
