@@ -7,11 +7,14 @@ services:
     name: moving-leads-ai
     runtime: python
     region: oregon # Choose: oregon, frankfurt, singapore, ohio, etc.
-    plan: free # Upgrade to 'starter' ($7/mo) for production
+    # 'starter' ($7/mo) recommended: the free plan sleeps after inactivity, which
+    # causes cold starts and can drop Stripe webhook deliveries. Downgrade to
+    # 'free' for a no-cost trial if webhook reliability isn't needed yet.
+    plan: starter
     branch: main
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2
-    healthCheckPath: /
+    healthCheckPath: /health
 
     # Environment Variables
     # Note: Values with 'sync: false' must be set in Render Dashboard
@@ -49,6 +52,11 @@ services:
       # calls (avoids N+1). Leave false until the webhook endpoint is registered.
       - key: RECONCILE_VIA_WEBHOOK
         value: "false"
+
+      # Per-minute cap on the public scoring endpoints (per IP). Protects the
+      # OpenAI bill from anonymous floods. 0 disables.
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "30"
 
     # Auto-deploy on push to main branch
     autoDeploy: true

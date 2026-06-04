@@ -57,6 +57,13 @@ async def favicon():
     )
 
 
+@app.get("/health", include_in_schema=False)
+async def health():
+    # Cheap liveness probe for the platform's health check — intentionally does
+    # NOT touch Supabase/OpenAI so pings stay free and can't be a failure source.
+    return {"status": "ok"}
+
+
 # Serve static files
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 

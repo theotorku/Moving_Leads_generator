@@ -36,6 +36,11 @@ class Settings(BaseModel):
     admin_password: SecretStr = Field(
         default_factory=lambda: SecretStr(os.getenv("ADMIN_PASSWORD", DEFAULT_ADMIN_PASSWORD))
     )
+    # Per-minute cap on the public, OpenAI-spending lead endpoints (per client IP
+    # for /leads/score; per API key for /leads/intake, at 5x). 0 disables it.
+    rate_limit_per_minute: int = Field(
+        default_factory=lambda: int(os.getenv("RATE_LIMIT_PER_MINUTE", "30") or 0)
+    )
 
     def startup_messages(self) -> tuple[list[str], list[str]]:
         warnings: list[str] = []

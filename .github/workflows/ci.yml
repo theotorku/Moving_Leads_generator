@@ -24,7 +24,7 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements-dev.txt
 
       - name: Unit/API tests (mocked)
         run: python -m pytest -q
@@ -60,7 +60,7 @@ jobs:
           python-version: "3.11"
           cache: pip
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements-dev.txt
       - name: Skip when live-DB secrets are unset
         if: env.SUPABASE_URL == ''
         run: echo "::warning::Browser E2E SKIPPED (no SUPABASE_URL secret)."

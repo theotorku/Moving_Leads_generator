@@ -3,13 +3,27 @@ from urllib.parse import parse_qs, urlparse
 from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import ValidationError
 import logging
+from ..config import get_settings
 from ..models import RawLead, ScoreResponse
 from ..services.attribution import first_query_value, normalize_channel
 from ..services.ingest_service import map_intake_payload, resolve_api_key
+from ..services.rate_limit import FixedWindowRateLimiter
 from ..services.scoring_service import score_and_store_lead
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+# Public form: per-IP. Partner intake: per-key at 5x (a real integration sends
+# more, and it's already credentialed). Limits read from settings at first use.
+_public_limiter = FixedWindowRateLimiter(get_settings().rate_limit_per_minute)
+_intake_limiter = FixedWindowRateLimiter(get_settings().rate_limit_per_minute * 5)
+
+
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
 
 
 def _derive_attribution(lead_data: dict, request: Request) -> dict:
@@ -43,10 +57,9 @@ def _derive_attribution(lead_data: dict, request: Request) -> dict:
 async def score_lead(lead: RawLead, request: Request):
     # Provenance + TCPA consent. source_ip/consent records persist on `leads`,
     # which is RLS-locked to service_role (never exposed to the browser key).
-    forwarded = request.headers.get("x-forwarded-for", "")
-    source_ip = forwarded.split(",")[0].strip() if forwarded else (
-        request.client.host if request.client else None
-    )
+    source_ip = _client_ip(request)
+    if not _public_limiter.allow(source_ip):
+        raise HTTPException(status_code=429, detail="Too many requests. Please slow down and try again shortly.")
     source_fields = _derive_attribution(lead.model_dump(mode="json"), request)
     result = await score_and_store_lead(
         lead, source_fields=source_fields, source_ip=source_ip, verified=False
@@ -74,6 +87,8 @@ async def intake_lead(
     source = resolve_api_key(x_api_key)
     if not source:
         raise HTTPException(status_code=401, detail="Invalid or missing API key.")
+    if not _intake_limiter.allow(source.get("slug") or source.get("id") or "intake"):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded for this source.")
 
     mapped = map_intake_payload(payload)
     try:

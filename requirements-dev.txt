@@ -1,0 +1,8 @@
+# Dev/CI dependencies. Installs the prod set plus the test toolchain.
+# Prod images install requirements.txt only.
+-r requirements.txt
+
+pytest
+pytest-asyncio
+# Browser E2E (opt-in, RUN_E2E=1): install + `playwright install chromium`.
+# playwright

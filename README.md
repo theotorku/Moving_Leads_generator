@@ -191,6 +191,13 @@ sources into channels such as `direct`, `organic`, `google_lsa`, `google_ads`,
    ```bash
    docker run -p 8000:8000 --env-file .env moving-leads-ai
    ```
+   (The image honors `$PORT`; defaults to 8000.)
+
+## 🚀 Production deploy (Render)
+
+Push-to-`main` autodeploys via `render.yaml`. See **[DEPLOY.md](DEPLOY.md)** for the
+full runbook: rotating secrets, scrubbing test data, setting Render env vars,
+registering the Stripe webhook, and the production smoke test.
 
 ## 🧪 Testing
 

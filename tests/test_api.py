@@ -752,6 +752,44 @@ def test_csv_import_requires_admin():
     assert res.status_code == 401
 
 
+# --- Rate limiting ----------------------------------------------------------
+
+from app.services.rate_limit import FixedWindowRateLimiter  # noqa: E402
+
+
+def test_rate_limiter_allows_then_blocks():
+    rl = FixedWindowRateLimiter(max_per_window=2, window_seconds=60)
+    assert rl.allow("ip-a") is True
+    assert rl.allow("ip-a") is True
+    assert rl.allow("ip-a") is False          # over the limit
+    assert rl.allow("ip-b") is True           # separate key, own budget
+
+
+def test_rate_limiter_disabled_when_zero():
+    rl = FixedWindowRateLimiter(max_per_window=0)
+    assert all(rl.allow("x") for _ in range(5))
+
+
+def test_score_endpoint_returns_429_when_rate_limited():
+    payload = {
+        "full_name": "Rate Limited", "email": "rl@example.com", "phone": "+1 555 0100",
+        "move_date": "2026-10-01", "origin_zip": "10001", "destination_zip": "90210",
+        "home_size": "2_bedroom", "budget": 5000, "urgency": "this_month",
+    }
+    mock_supabase = MagicMock()
+    mock_supabase.table.return_value.insert.return_value.execute.return_value = SimpleNamespace(data=[])
+    with (
+        patch("app.routes.leads._public_limiter", FixedWindowRateLimiter(max_per_window=1)),
+        patch("app.services.scoring_service.analyze_lead",
+              AsyncMock(return_value={"score": 80, "reasoning": "ok"})),
+        patch("app.services.scoring_service.get_supabase_client", return_value=mock_supabase),
+    ):
+        first = client.post("/leads/score", json=payload)
+        second = client.post("/leads/score", json=payload)
+    assert first.status_code == 200
+    assert second.status_code == 429
+
+
 # --- Stripe webhook reconciliation ------------------------------------------
 
 import stripe  # noqa: E402
