@@ -116,7 +116,7 @@ def test_score_lead_endpoint_persists_scored_lead():
 
     with (
         patch(
-            "app.routes.leads.analyze_lead",
+            "app.services.scoring_service.analyze_lead",
             AsyncMock(
                 return_value={
                     "score": 90,
@@ -133,7 +133,7 @@ def test_score_lead_endpoint_persists_scored_lead():
                 }
             ),
         ),
-        patch("app.routes.leads.get_supabase_client", return_value=mock_supabase),
+        patch("app.services.scoring_service.get_supabase_client", return_value=mock_supabase),
     ):
         response = client.post("/leads/score", json=payload)
 
@@ -174,8 +174,8 @@ def test_score_lead_surfaces_persistence_failure():
     )
 
     with (
-        patch("app.routes.leads.analyze_lead", AsyncMock(return_value={"score": 90, "reasoning": "Mocked AI"})),
-        patch("app.routes.leads.get_supabase_client", return_value=mock_supabase),
+        patch("app.services.scoring_service.analyze_lead", AsyncMock(return_value={"score": 90, "reasoning": "Mocked AI"})),
+        patch("app.services.scoring_service.get_supabase_client", return_value=mock_supabase),
     ):
         response = client.post("/leads/score", json=payload)
 
@@ -205,8 +205,8 @@ def test_score_lead_captures_consent_and_provenance():
     mock_supabase.table.return_value.insert.return_value.execute.return_value = SimpleNamespace(data=[])
 
     with (
-        patch("app.routes.leads.analyze_lead", AsyncMock(return_value={"score": 88, "reasoning": "ok"})),
-        patch("app.routes.leads.get_supabase_client", return_value=mock_supabase),
+        patch("app.services.scoring_service.analyze_lead", AsyncMock(return_value={"score": 88, "reasoning": "ok"})),
+        patch("app.services.scoring_service.get_supabase_client", return_value=mock_supabase),
     ):
         response = client.post("/leads/score", json=payload)
 
@@ -248,8 +248,8 @@ def test_score_lead_accepts_blank_source_fields_from_public_form():
     mock_supabase.table.return_value.insert.return_value.execute.return_value = SimpleNamespace(data=[])
 
     with (
-        patch("app.routes.leads.analyze_lead", AsyncMock(return_value={"score": 80, "reasoning": "ok"})),
-        patch("app.routes.leads.get_supabase_client", return_value=mock_supabase),
+        patch("app.services.scoring_service.analyze_lead", AsyncMock(return_value={"score": 80, "reasoning": "ok"})),
+        patch("app.services.scoring_service.get_supabase_client", return_value=mock_supabase),
     ):
         response = client.post("/leads/score", json=payload)
 
@@ -626,6 +626,107 @@ def test_lead_sources_endpoint():
 
 def test_lead_sources_requires_admin():
     assert client.get("/admin/sources").status_code == 401
+
+
+# --- Phase D: partner intake + CSV import -----------------------------------
+
+def test_intake_requires_api_key():
+    assert client.post("/leads/intake", json={"full_name": "A"}).status_code == 401
+
+
+def test_intake_rejects_unknown_key():
+    with patch("app.routes.leads.resolve_api_key", return_value=None):
+        res = client.post("/leads/intake", json={"full_name": "A"}, headers={"X-API-Key": "bad"})
+    assert res.status_code == 401
+
+
+def test_intake_scores_and_stamps_source_from_key():
+    mock_supabase = MagicMock()
+    mock_supabase.table.return_value.insert.return_value.execute.return_value = SimpleNamespace(data=[])
+    # Partner-style payload: aliased field names + messy formats.
+    payload = {
+        "name": "Partner Lead", "email": "partner-lead@example.com", "tel": "+1 555 0100",
+        "move_date": "2026-10-01", "origin": "10001", "destination": "90210",
+        "size": "2 bedroom", "budget": "$4,500", "timeline": "this month",
+        "consent_tcpa": True,
+    }
+    with (
+        patch("app.routes.leads.resolve_api_key",
+              return_value={"slug": "acme", "channel": "referral_partner", "partner": "acme"}),
+        patch("app.services.scoring_service.analyze_lead",
+              AsyncMock(return_value={"score": 77, "reasoning": "ok"})),
+        patch("app.services.scoring_service.get_supabase_client", return_value=mock_supabase),
+    ):
+        res = client.post("/leads/intake", json=payload, headers={"X-API-Key": "lk_acme_x"})
+    assert res.status_code == 200
+    inserted = mock_supabase.table.return_value.insert.call_args.args[0]
+    assert inserted["source_channel"] == "referral_partner"   # from the key, not the payload
+    assert inserted["source_partner"] == "acme"
+    assert inserted["verified"] is True
+    assert inserted["origin_zip"] == "10001"                  # mapped from "origin"
+    assert inserted["budget"] == 4500                         # coerced from "$4,500"
+
+
+def test_intake_invalid_payload_returns_422():
+    with patch("app.routes.leads.resolve_api_key",
+               return_value={"slug": "acme", "channel": "webhook", "partner": "acme"}):
+        res = client.post("/leads/intake", json={"full_name": "x"}, headers={"X-API-Key": "lk_x"})
+    assert res.status_code == 422
+
+
+def test_create_ingest_source_returns_key_once():
+    mock_supabase = MagicMock()
+    mock_supabase.table.return_value.insert.return_value.execute.return_value = SimpleNamespace(
+        data=[{"id": "s-1", "slug": "acme-movers", "label": "Acme Movers",
+               "channel": "referral_partner", "partner": "acme-movers", "active": True,
+               "created_at": None, "last_used_at": None}])
+    with patch("app.services.ingest_service.get_supabase_client", return_value=mock_supabase):
+        res = client.post("/admin/ingest-sources",
+                          json={"label": "Acme Movers", "channel": "referral_partner"},
+                          headers=auth_headers())
+    assert res.status_code == 201
+    body = res.json()
+    assert body["api_key"].startswith("lk_")       # plaintext shown once
+    assert "api_key_hash" not in body              # never the hash
+    # The stored record carries only the hash.
+    stored = mock_supabase.table.return_value.insert.call_args.args[0]
+    assert "api_key_hash" in stored and "api_key" not in stored
+
+
+def test_ingest_sources_require_admin():
+    assert client.get("/admin/ingest-sources").status_code == 401
+    assert client.post("/admin/ingest-sources", json={"label": "X"}).status_code == 401
+
+
+def test_csv_import_scores_rows_and_reports_skips():
+    mock_supabase = MagicMock()
+    mock_supabase.table.return_value.insert.return_value.execute.return_value = SimpleNamespace(data=[])
+    csv_content = (
+        "full_name,email,phone,move_date,origin_zip,destination_zip,home_size,budget,urgency\n"
+        "Csv One,csv1@example.com,5550100,2026-10-01,10001,90210,2_bedroom,4000,this_month\n"
+        "Bad Row,not-an-email,,,,,,,\n"
+    )
+    with (
+        patch("app.services.scoring_service.analyze_lead",
+              AsyncMock(return_value={"score": 70, "reasoning": "ok"})),
+        patch("app.services.scoring_service.get_supabase_client", return_value=mock_supabase),
+    ):
+        res = client.post(
+            "/admin/leads/import",
+            files={"file": ("leads.csv", csv_content, "text/csv")},
+            data={"channel": "manual"},
+            headers=auth_headers(),
+        )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["imported"] == 1
+    assert len(body["skipped"]) >= 1               # the bad row
+
+
+def test_csv_import_requires_admin():
+    res = client.post("/admin/leads/import",
+                      files={"file": ("x.csv", "a,b\n1,2\n", "text/csv")})
+    assert res.status_code == 401
 
 
 # --- Stripe webhook reconciliation ------------------------------------------

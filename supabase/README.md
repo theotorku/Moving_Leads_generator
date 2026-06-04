@@ -66,6 +66,10 @@ schema source of truth. That caused three concrete problems this layer fixes:
     revenue, booked move value, book_rate) joining `leads` attribution to
     `lead_purchases` outcomes. Powers `GET /admin/sources` and the Command
     Center "Sources" view — *where are the leads coming from*. service_role only.
+15. `migrations/20260101000016_ingest_sources.sql` — `ingest_sources` table:
+    per-partner intake API keys (SHA-256 hashed; plaintext shown once) mapping a
+    presented key to a channel + partner for `POST /leads/intake`. RLS-locked to
+    service_role like every other table.
 
 ## Security model (RLS)
 

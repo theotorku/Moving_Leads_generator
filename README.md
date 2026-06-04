@@ -10,6 +10,7 @@ An AI-powered lead generation and monetization platform for the moving industry,
 - **Automated Reasoning** - AI provides detailed scoring rationale
 - **Outcome-Calibrated Scores** - A new lead's AI booking probability is blended toward the *real* book rate of its route+urgency segment (shrinkage toward the AI prior), and high-dispute segments bump fraud risk — scores get sharper as outcomes accrue
 - **Lead Attribution, Provenance & TCPA Consent** - Every lead records channel, medium, campaign, partner/referrer, landing page, source URL, capture IP (first `X-Forwarded-For` hop), and explicit TCPA consent (text + timestamp) — the compliance layer for selling exclusive leads
+- **Multi-Source Ingestion** - Leads enter via the public form, an authenticated partner API (`POST /leads/intake` with per-partner keys), or admin CSV bulk-import — all sharing one scoring/persistence pipeline so every channel is scored and attributed identically
 
 ### Feedback Loop & Routing
 - **Outcome Tracking** - Record each sold lead's progress (contacted → appointment → booked, or lost/disputed/refunded) and surface **cost per booked move** and conversion analytics
@@ -202,6 +203,9 @@ pytest
 ### Public Endpoints
 - `POST /leads/score` - Submit and score a lead (returns the scored lead + persistence status)
 
+### Partner Intake (API key)
+- `POST /leads/intake` - Authenticated inbound lead intake for partners / aggregators / webhooks. Send the partner's key as the `X-API-Key` header; the key resolves to a registered channel + partner (which is stamped onto the lead — partners can't spoof attribution), then the lead runs the same scoring + persistence pipeline and is marked `verified`. Accepts common aliased field names (`name`→`full_name`, `origin`→`origin_zip`, etc.).
+
 ### Webhooks
 - `POST /stripe/webhook` - Stripe event reconciliation (signature-verified, idempotent via `stripe_events`)
 
@@ -222,6 +226,10 @@ pytest
 - `GET /admin/customers` - List all customers
 - `GET /admin/customers/{id}/routing-profile` - Read a buyer's routing profile
 - `PUT /admin/customers/{id}/routing-profile` - Create/update a buyer's routing profile
+- `GET /admin/ingest-sources` - List partner intake keys (metadata only)
+- `POST /admin/ingest-sources` - Create a partner intake key (returns the key **once**)
+- `POST /admin/ingest-sources/{id}/revoke` - Deactivate a partner key
+- `POST /admin/leads/import` - Bulk-import leads from an uploaded CSV (scored + persisted per row)
 
 ## 💰 Revenue Model
 

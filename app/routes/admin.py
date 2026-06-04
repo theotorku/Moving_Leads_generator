@@ -2,11 +2,11 @@ import logging
 import secrets
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from ..config import get_settings
-from ..models import LeadStatus, RoutingProfileUpdate
+from ..models import IngestSourceCreate, LeadStatus, RoutingProfileUpdate
 from ..services.admin_service import (
     assign_lead_to_customer,
     get_admin_analytics,
@@ -18,6 +18,12 @@ from ..services.admin_service import (
     list_leads_for_admin,
     record_lead_outcome,
     upsert_routing_profile,
+)
+from ..services.csv_import import import_leads_from_csv
+from ..services.ingest_service import (
+    create_ingest_source,
+    list_ingest_sources,
+    revoke_ingest_source,
 )
 
 router = APIRouter()
@@ -102,6 +108,35 @@ async def get_conversion(admin: str = Depends(verify_admin)):
 async def get_sources(admin: str = Depends(verify_admin)):
     """Per-channel acquisition rollup — where leads come from (volume/quality/conversion)."""
     return {"sources": get_lead_sources()}
+
+@router.get("/admin/ingest-sources")
+async def list_intake_sources(admin: str = Depends(verify_admin)):
+    """List partner intake sources (no keys — those are shown once at creation)."""
+    return {"ingest_sources": list_ingest_sources()}
+
+@router.post("/admin/ingest-sources", status_code=201)
+async def create_intake_source(body: IngestSourceCreate, admin: str = Depends(verify_admin)):
+    """Create a partner intake source; returns the API key ONCE (store it now)."""
+    return create_ingest_source(label=body.label, channel=body.channel, partner=body.partner)
+
+@router.post("/admin/ingest-sources/{source_id}/revoke")
+async def revoke_intake_source(source_id: str, admin: str = Depends(verify_admin)):
+    """Deactivate a partner key so it can no longer submit leads."""
+    return revoke_ingest_source(source_id)
+
+@router.post("/admin/leads/import")
+async def import_leads(
+    file: UploadFile = File(...),
+    channel: str = Form("manual"),
+    admin: str = Depends(verify_admin),
+):
+    """Bulk-import leads from an uploaded CSV (scored + persisted per row)."""
+    raw = await file.read()
+    try:
+        content = raw.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise HTTPException(status_code=400, detail="File must be UTF-8 encoded CSV.") from exc
+    return await import_leads_from_csv(content, channel=channel)
 
 @router.post("/admin/purchases/{purchase_id}/outcome")
 async def set_purchase_outcome(

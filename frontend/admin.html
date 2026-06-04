@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Command Center — Moving Leads AI</title>
-    <link rel="stylesheet" href="/static/admin.css?v=8">
+    <link rel="stylesheet" href="/static/admin.css?v=9">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -170,6 +170,66 @@
                         </tbody>
                     </table>
                 </div>
+
+                <div class="intake-panels">
+                    <!-- Partner intake keys -->
+                    <div class="panel-card">
+                        <div class="col-head">
+                            <h3>Partner intake keys</h3>
+                            <button class="btn-primary btn-sm" id="new-key-btn">+ New key</button>
+                        </div>
+                        <p class="col-sub">Give a partner a key to POST leads to
+                            <code>/leads/intake</code> with header <code>X-API-Key</code>.</p>
+
+                        <form id="new-key-form" class="inline-form hidden">
+                            <input type="text" id="key-label" placeholder="Partner / source name" required>
+                            <select id="key-channel">
+                                <option value="referral_partner">referral_partner</option>
+                                <option value="webhook">webhook</option>
+                                <option value="google_lsa">google_lsa</option>
+                                <option value="angi">angi</option>
+                                <option value="thumbtack">thumbtack</option>
+                                <option value="yelp">yelp</option>
+                                <option value="realtor_partner">realtor_partner</option>
+                                <option value="social">social</option>
+                                <option value="email">email</option>
+                            </select>
+                            <button type="submit" class="btn-primary btn-sm">Create</button>
+                        </form>
+
+                        <div id="new-key-banner" class="key-banner hidden"></div>
+
+                        <div class="table-wrap">
+                            <table class="data-grid">
+                                <thead>
+                                    <tr><th>Source</th><th>Channel</th><th>Status</th><th>Last used</th><th></th></tr>
+                                </thead>
+                                <tbody id="ingest-tbody">
+                                    <tr><td colspan="5" class="grid-loading">Loading…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- CSV import -->
+                    <div class="panel-card">
+                        <div class="col-head"><h3>Import leads (CSV)</h3></div>
+                        <p class="col-sub">Upload a CSV with columns like
+                            <code>full_name, email, phone, move_date, origin_zip, destination_zip,
+                            home_size, budget, urgency</code>. Each row is scored and stored.</p>
+                        <form id="import-form" class="inline-form">
+                            <input type="file" id="import-file" accept=".csv,text/csv" required>
+                            <select id="import-channel">
+                                <option value="manual">manual</option>
+                                <option value="referral_partner">referral_partner</option>
+                                <option value="email">email</option>
+                                <option value="webhook">webhook</option>
+                            </select>
+                            <button type="submit" class="btn-primary btn-sm" id="import-btn">Import</button>
+                        </form>
+                        <div id="import-result" class="key-banner hidden"></div>
+                    </div>
+                </div>
             </section>
         </main>
 
@@ -298,8 +358,100 @@
 
         /* ---- data loads ---- */
         async function loadDashboard() {
-            await Promise.all([loadAnalytics(), loadConversion(), loadSources(), loadCustomers().then(loadLeads)]);
+            await Promise.all([
+                loadAnalytics(), loadConversion(), loadSources(),
+                loadIngestSources(), loadCustomers().then(loadLeads),
+            ]);
         }
+
+        /* ---- partner intake keys ---- */
+        async function loadIngestSources() {
+            const tbody = document.getElementById('ingest-tbody');
+            try {
+                const data = await (await fetchAdmin('/admin/ingest-sources')).json();
+                const rows = data.ingest_sources || [];
+                if (!rows.length) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="grid-empty">No partner keys yet.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = rows.map(s => `
+                    <tr>
+                        <td>${esc(s.label)}<div class="source-sub">${esc(s.partner || s.slug)}</div></td>
+                        <td><span class="badge badge-source">${esc(s.channel)}</span></td>
+                        <td><span class="badge ${s.active ? 'badge-ok' : 'badge-sold'}">${s.active ? 'active' : 'revoked'}</span></td>
+                        <td class="muted">${s.last_used_at ? fmtDate(s.last_used_at) : 'never'}</td>
+                        <td>${s.active ? `<button class="btn-ghost btn-sm" data-revoke="${esc(s.id)}">Revoke</button>` : ''}</td>
+                    </tr>
+                `).join('');
+                tbody.querySelectorAll('[data-revoke]').forEach(btn => {
+                    btn.addEventListener('click', () => revokeIngestSource(btn.dataset.revoke));
+                });
+            } catch (err) {
+                console.error('ingest sources load failed', err);
+                tbody.innerHTML = '<tr><td colspan="5" class="grid-empty">Failed to load partner keys.</td></tr>';
+            }
+        }
+
+        async function revokeIngestSource(id) {
+            try {
+                await fetchAdmin(`/admin/ingest-sources/${id}/revoke`, { method: 'POST' });
+                await loadIngestSources();
+            } catch (err) { alert(err.message); }
+        }
+
+        document.getElementById('new-key-btn').addEventListener('click', () => {
+            document.getElementById('new-key-form').classList.toggle('hidden');
+        });
+
+        document.getElementById('new-key-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const label = document.getElementById('key-label').value.trim();
+            const channel = document.getElementById('key-channel').value;
+            if (!label) return;
+            try {
+                const res = await fetchAdmin('/admin/ingest-sources', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ label, channel }),
+                });
+                const body = await res.json();
+                const banner = document.getElementById('new-key-banner');
+                banner.className = 'key-banner';
+                banner.innerHTML = `<strong>Key created — copy it now, it won't be shown again:</strong>
+                    <code class="key-value">${esc(body.api_key)}</code>`;
+                document.getElementById('new-key-form').reset();
+                document.getElementById('new-key-form').classList.add('hidden');
+                await loadIngestSources();
+            } catch (err) { alert(err.message); }
+        });
+
+        /* ---- CSV import ---- */
+        document.getElementById('import-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fileEl = document.getElementById('import-file');
+            const btn = document.getElementById('import-btn');
+            const result = document.getElementById('import-result');
+            if (!fileEl.files.length) return;
+            const fd = new FormData();
+            fd.append('file', fileEl.files[0]);
+            fd.append('channel', document.getElementById('import-channel').value);
+            btn.disabled = true; btn.textContent = 'Importing…';
+            try {
+                const body = await (await fetchAdmin('/admin/leads/import', { method: 'POST', body: fd })).json();
+                result.className = 'key-banner';
+                const skips = (body.skipped || []).map(s =>
+                    `<li>${s.row ? 'row ' + s.row : 'note'}: ${esc(s.reason)}</li>`).join('');
+                result.innerHTML = `<strong>Imported ${body.imported} of ${body.total_rows} rows</strong>
+                    (channel: ${esc(body.channel)}).${skips ? `<ul class="skip-list">${skips}</ul>` : ''}`;
+                document.getElementById('import-form').reset();
+                await Promise.all([loadSources(), loadAnalytics()]);
+            } catch (err) {
+                result.className = 'key-banner key-banner-error';
+                result.textContent = err.message;
+            } finally {
+                btn.disabled = false; btn.textContent = 'Import';
+            }
+        });
 
         async function loadSources() {
             const tbody = document.getElementById('sources-tbody');

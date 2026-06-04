@@ -206,6 +206,14 @@ class CustomerRegistration(BaseModel):
         return _require_phone_digits(value)
 
 
+class IngestSourceCreate(BaseModel):
+    """Create a partner intake source; the API key is generated server-side."""
+
+    label: Annotated[str, Field(min_length=2, max_length=80)]
+    channel: Optional[LeadSourceChannel] = None
+    partner: Optional[str] = None
+
+
 class RoutingProfileUpdate(BaseModel):
     """A buyer's lead-routing preferences (empty lists = no restriction)."""
 
